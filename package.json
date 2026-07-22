@@ -1,0 +1,43 @@
+{
+  "name": "freetier-deepagent-framework",
+  "version": "0.1.0",
+  "description": "TypeScript LangChain Deep Agent framework that maximizes free-tier LLM usage by seamlessly rotating across NVIDIA, HuggingFace, and OpenRouter providers (GLM model) on quota exhaustion, with durable Neon-backed task/todo state for resumable runs.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:setup": "tsx src/db/setup.ts",
+    "db:cleanup": "tsx cleanup-db.ts",
+    "eval": "tsx eval/runEval.ts"
+  },
+  "keywords": [
+    "langchain",
+    "deepagents",
+    "langgraph",
+    "free-tier",
+    "glm",
+    "nvidia",
+    "huggingface",
+    "openrouter"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "@freetier/orchestrator": "github:RY0502/freetier-orchestrator",
+    "@langchain/core": "^1.0.0",
+    "@langchain/langgraph": "^1.2.6",
+    "@langchain/openai": "^1.0.0",
+    "@neondatabase/serverless": "^0.9.0",
+    "deepagents": "^1.8.6",
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
