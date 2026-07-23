@@ -1,6 +1,7 @@
 import { DatabaseClient } from '../db/client.js';
 import { type ProviderName } from '../providers/providerManager.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { type SubagentDef } from './subagentFactory.js';
 /**
@@ -28,11 +29,20 @@ export interface DeepAgentRunnerOptions {
      * provider-switch audit log in `agent_events`.
      */
     callbacks?: BaseCallbackHandler[];
+    /**
+     * Caller-supplied LLM model (e.g. `ChatCerebras`, `ChatOpenAI`).
+     * When provided, the framework uses this model directly instead of
+     * the built-in NVIDIA → OpenRouter → HuggingFace provider rotation.
+     * Provider-switch / quota-exhaustion logic is skipped — the caller
+     * is responsible for their own model's availability and retries.
+     * Useful for projects that already have a preferred LLM provider.
+     */
+    model?: BaseLanguageModel;
 }
 export interface RunResult {
     promptHash: string;
     finalText: string;
-    providerUsed: ProviderName;
+    providerUsed: ProviderName | 'custom';
 }
 /**
  * Orchestrates a single user task end-to-end:
@@ -52,6 +62,7 @@ export declare class DeepAgentRunner {
     private readonly extraSubagents;
     private readonly systemPromptExtension?;
     private readonly callbacks;
+    private readonly customModel?;
     /**
      * @param options.extraTools Additional tools merged with the
      *   framework's built-in tools (tavily_search/crawl, vision_scrape,
@@ -64,7 +75,22 @@ export declare class DeepAgentRunner {
      */
     constructor(db: DatabaseClient, options?: DeepAgentRunnerOptions);
     run(userPrompt: string): Promise<RunResult>;
-    private executeWithProvider;
+    /**
+     * Run using the caller-supplied custom model. No provider rotation:
+     * errors propagate directly to the caller.
+     */
+    private runWithCustomModel;
+    /**
+     * Run using the built-in NVIDIA → OpenRouter → HuggingFace provider
+     * rotation. On quota exhaustion, switches to the next provider and
+     * rebuilds the deep agent with the same thread/checkpointer/backend.
+     */
+    private runWithProviderRotation;
+    /**
+     * Shared execution logic: builds a deep agent with the given model,
+     * streams it, and persists todo state as it progresses.
+     */
+    private executeWithModel;
     /** Normalizes the varying shapes a LangGraph stream chunk can take. */
     private extractState;
 }

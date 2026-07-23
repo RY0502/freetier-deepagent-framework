@@ -21,6 +21,15 @@ export const CONFIG = {
   NEON_DATABASE_URL: process.env.NEON_DATABASE_URL ?? '',
   SCRAPE_AGENT_URL: process.env.SCRAPE_AGENT_URL ?? 'https://scrape-agent.onrender.com',
 
+  // Cloudflare Workers AI img2img tool (built-in `generate_image_cloudflare_img2img`
+  // tool). Named distinctly from any caller-configured ChatCloudflare keys. Up to 3
+  // API tokens sharing one account id are supported for rotation on rate limiting --
+  // the tool works with however many of the 3 are actually set (at least 1 required).
+  CLOUDFLARE_IMG2IMG_ACCOUNT_ID: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID ?? '',
+  CLOUDFLARE_IMG2IMG_API_TOKEN_1: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_1 ?? '',
+  CLOUDFLARE_IMG2IMG_API_TOKEN_2: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_2 ?? '',
+  CLOUDFLARE_IMG2IMG_API_TOKEN_3: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_3 ?? '',
+
   MAX_PARALLEL_SUBAGENTS: Number(process.env.MAX_PARALLEL_SUBAGENTS ?? 3),
 
   PROVIDER_RETRY_MAX: Number(process.env.PROVIDER_RETRY_MAX ?? 2),

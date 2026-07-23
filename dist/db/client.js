@@ -13,6 +13,21 @@ export class DatabaseClient {
     constructor(connectionString) {
         this.sql = neon(connectionString);
     }
+    /**
+     * Expose the raw neon SQL tagged-template function so callers can run
+     * domain-specific queries (e.g. creating/querying their own tables)
+     * using the same DB connection, without needing a separate client.
+     *
+     * Usage:
+     * ```ts
+     * const sql = db.getSql();
+     * await sql`CREATE TABLE IF NOT EXISTS my_table (...)`;
+     * const rows = await sql`SELECT * FROM my_table WHERE ...`;
+     * ```
+     */
+    getSql() {
+        return this.sql;
+    }
     async getRun(promptHash) {
         const rows = (await this.sql `
       SELECT * FROM agent_runs WHERE prompt_hash = ${promptHash} LIMIT 1
@@ -142,6 +157,49 @@ export class DatabaseClient {
       ON CONFLICT (thread_id, checkpoint_ns, checkpoint_id, task_id, idx)
       DO UPDATE SET channel = ${channel}, value = ${JSON.stringify(value)}
     `;
+    }
+    // ---- Generic caller-defined custom state (fine-grained sub-step checkpointing) ----
+    /**
+     * Fetch one caller-defined state value for a run, or null if never set.
+     * `stateKey` is entirely caller-defined (e.g. "character:Pip:pose:front").
+     */
+    async getCustomState(promptHash, stateKey) {
+        const rows = (await this.sql `
+      SELECT value FROM agent_custom_state WHERE prompt_hash = ${promptHash} AND state_key = ${stateKey} LIMIT 1
+    `);
+        return rows[0] ? rows[0].value : null;
+    }
+    /**
+     * Upsert one caller-defined state value for a run. Overwrites any
+     * previous value under the same (prompt_hash, state_key).
+     */
+    async setCustomState(promptHash, stateKey, value) {
+        await this.sql `
+      INSERT INTO agent_custom_state (prompt_hash, state_key, value)
+      VALUES (${promptHash}, ${stateKey}, ${JSON.stringify(value)})
+      ON CONFLICT (prompt_hash, state_key)
+      DO UPDATE SET value = ${JSON.stringify(value)}, updated_at = now()
+    `;
+    }
+    /** Remove one caller-defined state entry (rarely needed; mostly for cleanup/tests). */
+    async deleteCustomState(promptHash, stateKey) {
+        await this.sql `DELETE FROM agent_custom_state WHERE prompt_hash = ${promptHash} AND state_key = ${stateKey}`;
+    }
+    /**
+     * List all caller-defined state entries for a run, optionally filtered to
+     * keys starting with `keyPrefix` (e.g. "character:Pip:" to fetch every
+     * pose checkpoint for one character in one query).
+     */
+    async listCustomState(promptHash, keyPrefix) {
+        const rows = keyPrefix
+            ? (await this.sql `
+          SELECT state_key, value FROM agent_custom_state
+          WHERE prompt_hash = ${promptHash} AND state_key LIKE ${keyPrefix + "%"}
+        `)
+            : (await this.sql `
+          SELECT state_key, value FROM agent_custom_state WHERE prompt_hash = ${promptHash}
+        `);
+        return rows.map((r) => ({ key: r.state_key, value: r.value }));
     }
 }
 //# sourceMappingURL=client.js.map

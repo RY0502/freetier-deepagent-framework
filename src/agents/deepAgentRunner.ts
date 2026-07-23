@@ -5,9 +5,12 @@ import { StateStore, type TodoSnapshot } from '../state/stateStore.js';
 import { ProviderManager, type ProviderName } from '../providers/providerManager.js';
 import { classifyProviderError } from '../providers/errorClassifier.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
+import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { createTavilySearchTool, createTavilyCrawlTool } from '../tools/tavilyTools.js';
 import { createVisionScrapeTool, createPageAnalysisTool } from '../tools/visionScrapeTool.js';
+import { createPollinationsImageTool } from '../tools/pollinationsImageTool.js';
+import { createCloudflareImg2ImgTool } from '../tools/cloudflareImg2ImgTool.js';
 import { buildDefaultSubagents, type SubagentDef } from './subagentFactory.js';
 import { LoggingCallbackHandler } from '../callbacks/loggingCallbackHandler.js';
 import { CONFIG } from '../config.js';
@@ -37,12 +40,21 @@ export interface DeepAgentRunnerOptions {
    * provider-switch audit log in `agent_events`.
    */
   callbacks?: BaseCallbackHandler[];
+  /**
+   * Caller-supplied LLM model (e.g. `ChatCerebras`, `ChatOpenAI`).
+   * When provided, the framework uses this model directly instead of
+   * the built-in NVIDIA → OpenRouter → HuggingFace provider rotation.
+   * Provider-switch / quota-exhaustion logic is skipped — the caller
+   * is responsible for their own model's availability and retries.
+   * Useful for projects that already have a preferred LLM provider.
+   */
+  model?: BaseLanguageModel;
 }
 
 const logger = {
-  info: (msg: string, meta?: Record<string, unknown>) => console.log(`[deep-agent] ${msg}`, meta ?? ''),
-  warn: (msg: string, meta?: Record<string, unknown>) => console.warn(`[deep-agent] ${msg}`, meta ?? ''),
-  error: (msg: string, meta?: Record<string, unknown>) => console.error(`[deep-agent] ${msg}`, meta ?? ''),
+  info: (msg: string, meta?: Record<string, unknown>) => console.log(`[deep-agent-orchestrator] ${msg}`, meta ?? ''),
+  warn: (msg: string, meta?: Record<string, unknown>) => console.warn(`[deep-agent-orchestrator] ${msg}`, meta ?? ''),
+  error: (msg: string, meta?: Record<string, unknown>) => console.error(`[deep-agent-orchestrator] ${msg}`, meta ?? ''),
 };
 
 const SYSTEM_PROMPT_TEMPLATE = (resumeNote: string, domainRules?: string) => `You are a deep agent that plans and executes user tasks end to end.
@@ -59,6 +71,8 @@ ${resumeNote}
 - tavily_search / tavily_crawl: internet search and page text extraction. NOTE: Tavily's index can be cached/stale — fine for blogs, articles, tutorials, documentation, past events; do NOT trust it for real-time facts or breaking/latest/today's news. For tavily_search, set \`topic: 'news'\` and \`days\` (e.g. days=1 for "today") to bias results toward recent publish dates when the task is time-sensitive.
 - vision_scrape: extract specific DATA values off a rendered page/screenshot (charts, dashboards, JS-heavy sites, or a real-time value/today's headline you need to read live) via a remote vision model.
 - analyze_page_components: describe a page/screenshot's UI/layout/components (design-review style questions) — NOT for extracting data values, use vision_scrape for that.
+- generate_image_pollinations: generate a brand-new image from a TEXT PROMPT ONLY (no reference image) via the Pollinations AI text-to-image API. Requires a model name (e.g. "flux", "gptimage", "zimage") and a prompt.
+- generate_image_cloudflare_img2img: transform/edit an EXISTING reference image (base64) via Cloudflare Workers AI Stable Diffusion img2img, guided by a text prompt — use this instead of generate_image_pollinations when you need to preserve the visual identity of a reference image while changing its pose/scene/background.
 - Delegate independent, parallelizable sub-tasks to sub-agents instead of doing everything yourself:
   - research-subagent: non-time-sensitive research (blogs, articles, tutorials, history).
   - vision-subagent: screenshot/UI data-extraction or component-analysis tasks.
@@ -77,7 +91,7 @@ ${domainRules ? `\n## Domain rules\n${domainRules}` : ''}`;
 export interface RunResult {
   promptHash: string;
   finalText: string;
-  providerUsed: ProviderName;
+  providerUsed: ProviderName | 'custom';
 }
 
 /**
@@ -98,6 +112,7 @@ export class DeepAgentRunner {
   private readonly extraSubagents: SubagentDef[];
   private readonly systemPromptExtension?: string;
   private readonly callbacks: BaseCallbackHandler[];
+  private readonly customModel?: BaseLanguageModel;
 
   /**
    * @param options.extraTools Additional tools merged with the
@@ -117,9 +132,51 @@ export class DeepAgentRunner {
     this.extraSubagents = options.extraSubagents ?? [];
     this.systemPromptExtension = options.systemPromptExtension;
     this.callbacks = [new LoggingCallbackHandler(), ...(options.callbacks ?? [])];
+    this.customModel = options.model;
   }
 
   async run(userPrompt: string): Promise<RunResult> {
+    // When a custom model is supplied, skip the built-in provider
+    // rotation entirely — the caller manages their own model.
+    if (this.customModel) {
+      return this.runWithCustomModel(userPrompt);
+    }
+    return this.runWithProviderRotation(userPrompt);
+  }
+
+  /**
+   * Run using the caller-supplied custom model. No provider rotation:
+   * errors propagate directly to the caller.
+   */
+  private async runWithCustomModel(userPrompt: string): Promise<RunResult> {
+    const initialProvider = 'custom';
+    const runState = await this.stateStore.loadOrCreate(userPrompt, initialProvider);
+
+    logger.info(runState.isNew ? 'Starting new task (custom model)' : 'Resuming existing task (custom model)', {
+      promptHash: runState.promptHash,
+      threadId: runState.threadId,
+      existingTodos: runState.todos.length,
+    });
+
+    try {
+      const finalText = await this.executeWithModel(userPrompt, runState.promptHash, runState.threadId, this.customModel!, 'custom', runState.todos);
+      await this.stateStore.complete(runState.promptHash, finalText);
+      logger.info('Task completed (custom model)', { promptHash: runState.promptHash, finalTextLength: finalText.length });
+      return { promptHash: runState.promptHash, finalText, providerUsed: 'custom' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('Task failed (custom model)', { promptHash: runState.promptHash, message: message.slice(0, 200) });
+      await this.stateStore.fail(runState.promptHash, message);
+      throw error;
+    }
+  }
+
+  /**
+   * Run using the built-in NVIDIA → OpenRouter → HuggingFace provider
+   * rotation. On quota exhaustion, switches to the next provider and
+   * rebuilds the deep agent with the same thread/checkpointer/backend.
+   */
+  private async runWithProviderRotation(userPrompt: string): Promise<RunResult> {
     const initialProvider: ProviderName = 'nvidia';
     const runState = await this.stateStore.loadOrCreate(userPrompt, initialProvider);
     const providerManager = new ProviderManager(runState.currentProvider as ProviderName);
@@ -138,7 +195,7 @@ export class DeepAgentRunner {
       attemptCount++;
       try {
         logger.info('Attempt starting', { promptHash: runState.promptHash, attempt: attemptCount, provider: providerManager.current, todoCount: lastKnownTodos.length });
-        const finalText = await this.executeWithProvider(userPrompt, runState.promptHash, runState.threadId, providerManager, lastKnownTodos);
+        const finalText = await this.executeWithModel(userPrompt, runState.promptHash, runState.threadId, providerManager.getModel(), providerManager.current, lastKnownTodos);
         await this.stateStore.complete(runState.promptHash, finalText);
         logger.info('Task completed', { promptHash: runState.promptHash, provider: providerManager.current, finalTextLength: finalText.length });
         return { promptHash: runState.promptHash, finalText, providerUsed: providerManager.current };
@@ -172,11 +229,16 @@ export class DeepAgentRunner {
     }
   }
 
-  private async executeWithProvider(
+  /**
+   * Shared execution logic: builds a deep agent with the given model,
+   * streams it, and persists todo state as it progresses.
+   */
+  private async executeWithModel(
     userPrompt: string,
     promptHash: string,
     threadId: string,
-    providerManager: ProviderManager,
+    model: BaseLanguageModel,
+    providerLabel: string,
     existingTodos: TodoSnapshot[],
   ): Promise<string> {
     const resumeNote = existingTodos.length > 0
@@ -185,15 +247,17 @@ export class DeepAgentRunner {
           .join('\n')}\nDo NOT redo items marked "completed" — call write_todos to restate this exact list, then continue with the first "pending"/"in_progress" item.`
       : '';
 
-    logger.info('Creating deep agent', { provider: providerManager.current, threadId });
+    logger.info('Creating deep agent', { provider: providerLabel, threadId });
     const agentWithPrompt = createDeepAgent({
-      model: providerManager.getModel(),
+      model,
       systemPrompt: SYSTEM_PROMPT_TEMPLATE(resumeNote, this.systemPromptExtension),
       tools: [
         createTavilySearchTool(),
         createTavilyCrawlTool(),
         createVisionScrapeTool(),
         createPageAnalysisTool(),
+        createPollinationsImageTool(),
+        createCloudflareImg2ImgTool(),
         ...this.extraTools,
       ],
       subagents: [...buildDefaultSubagents(this.callbacks), ...this.extraSubagents],
@@ -205,7 +269,7 @@ export class DeepAgentRunner {
       ? `Resume this task exactly where it left off: ${userPrompt}`
       : userPrompt;
 
-    logger.info('Starting agent stream', { provider: providerManager.current, threadId, messageLength: userMessage.length });
+    logger.info('Starting agent stream', { provider: providerLabel, threadId, messageLength: userMessage.length });
     const stream = await agentWithPrompt.stream(
       { messages: [{ role: 'user', content: userMessage }] },
       { configurable: { thread_id: threadId }, recursionLimit: 100, callbacks: this.callbacks },

@@ -75,6 +75,23 @@ CREATE TABLE IF NOT EXISTS checkpoint_writes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_checkpoints_thread_id ON checkpoints(thread_id);
+
+-- Generic caller-defined checkpoint state, keyed by the same prompt_hash used
+-- for the agent_runs table so a downstream project (e.g. a video-generation
+-- pipeline) can persist arbitrary fine-grained sub-step progress (a single
+-- character pose, a single scene's audio clip, etc.) and correctly resume
+-- from exactly where it left off on a re-run of the identical prompt --
+-- without needing its own separate database or storage mechanism.
+CREATE TABLE IF NOT EXISTS agent_custom_state (
+    prompt_hash TEXT NOT NULL REFERENCES agent_runs(prompt_hash) ON DELETE CASCADE,
+    state_key TEXT NOT NULL,
+    value JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (prompt_hash, state_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_custom_state_prompt_hash ON agent_custom_state(prompt_hash);
 `;
 
 export type RunStatus = 'pending' | 'in_progress' | 'completed' | 'failed';

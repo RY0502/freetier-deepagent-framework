@@ -1,3 +1,4 @@
+import { neon } from '@neondatabase/serverless';
 import type { AgentRunRow, AgentTodoRow, RunStatus, TodoStatus } from './schema.js';
 /**
  * Thin wrapper around the Neon serverless driver exposing exactly the
@@ -10,6 +11,19 @@ import type { AgentRunRow, AgentTodoRow, RunStatus, TodoStatus } from './schema.
 export declare class DatabaseClient {
     private sql;
     constructor(connectionString: string);
+    /**
+     * Expose the raw neon SQL tagged-template function so callers can run
+     * domain-specific queries (e.g. creating/querying their own tables)
+     * using the same DB connection, without needing a separate client.
+     *
+     * Usage:
+     * ```ts
+     * const sql = db.getSql();
+     * await sql`CREATE TABLE IF NOT EXISTS my_table (...)`;
+     * const rows = await sql`SELECT * FROM my_table WHERE ...`;
+     * ```
+     */
+    getSql(): ReturnType<typeof neon>;
     getRun(promptHash: string): Promise<AgentRunRow | null>;
     createRun(promptHash: string, userPrompt: string, threadId: string, provider: string): Promise<AgentRunRow>;
     updateRunStatus(promptHash: string, status: RunStatus, errorMessage?: string): Promise<void>;
@@ -38,4 +52,25 @@ export declare class DatabaseClient {
     saveCheckpoint(threadId: string, checkpointId: string, checkpoint: any, metadata: any, parentCheckpointId?: string): Promise<void>;
     listCheckpoints(threadId: string, limit?: number): Promise<any[]>;
     saveCheckpointWrite(threadId: string, checkpointNs: string, checkpointId: string, taskId: string, idx: number, channel: string, value: any): Promise<void>;
+    /**
+     * Fetch one caller-defined state value for a run, or null if never set.
+     * `stateKey` is entirely caller-defined (e.g. "character:Pip:pose:front").
+     */
+    getCustomState<T = unknown>(promptHash: string, stateKey: string): Promise<T | null>;
+    /**
+     * Upsert one caller-defined state value for a run. Overwrites any
+     * previous value under the same (prompt_hash, state_key).
+     */
+    setCustomState(promptHash: string, stateKey: string, value: unknown): Promise<void>;
+    /** Remove one caller-defined state entry (rarely needed; mostly for cleanup/tests). */
+    deleteCustomState(promptHash: string, stateKey: string): Promise<void>;
+    /**
+     * List all caller-defined state entries for a run, optionally filtered to
+     * keys starting with `keyPrefix` (e.g. "character:Pip:" to fetch every
+     * pose checkpoint for one character in one query).
+     */
+    listCustomState<T = unknown>(promptHash: string, keyPrefix?: string): Promise<Array<{
+        key: string;
+        value: T;
+    }>>;
 }

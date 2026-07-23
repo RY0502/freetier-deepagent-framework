@@ -16,6 +16,10 @@ export declare const CONFIG: {
     TAVILY_API_KEY: string;
     NEON_DATABASE_URL: string;
     SCRAPE_AGENT_URL: string;
+    CLOUDFLARE_IMG2IMG_ACCOUNT_ID: string;
+    CLOUDFLARE_IMG2IMG_API_TOKEN_1: string;
+    CLOUDFLARE_IMG2IMG_API_TOKEN_2: string;
+    CLOUDFLARE_IMG2IMG_API_TOKEN_3: string;
     MAX_PARALLEL_SUBAGENTS: number;
     PROVIDER_RETRY_MAX: number;
     PROVIDER_RETRY_DELAY_MS: number;

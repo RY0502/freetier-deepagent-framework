@@ -14,7 +14,7 @@ async function main() {
   for (const statement of statements) {
     await sql(statement);
   }
-  console.log('Neon schema ready: agent_runs, agent_todos, agent_events');
+  console.log('Neon schema ready: agent_runs, agent_todos, agent_events, agent_custom_state');
 }
 
 main().catch((err) => {

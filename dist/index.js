@@ -2,6 +2,12 @@ import { CONFIG, validateConfig } from './config.js';
 import { DatabaseClient } from './db/client.js';
 import { DeepAgentRunner } from './agents/deepAgentRunner.js';
 import { buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent } from './agents/subagentFactory.js';
+import { CustomStateStore } from './state/customStateStore.js';
+import { hashUserPrompt } from './state/promptHash.js';
+import { StateStore } from './state/stateStore.js';
+import { SCHEMA_SQL } from './db/schema.js';
+import { createPollinationsImageTool, generatePollinationsImage } from './tools/pollinationsImageTool.js';
+import { createCloudflareImg2ImgTool, generateCloudflareImg2Img } from './tools/cloudflareImg2ImgTool.js';
 /**
  * Library entry point for callers embedding this framework (e.g. a
  * specialized orchestrator wrapping `DeepAgentRunner` for its own
@@ -9,7 +15,7 @@ import { buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buil
  * consumers only need to `import { DeepAgentRunner, ... } from
  * 'freetier-deepagent-framework'` rather than reaching into `src/`.
  */
-export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG };
+export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createPollinationsImageTool, generatePollinationsImage, createCloudflareImg2ImgTool, generateCloudflareImg2Img, };
 async function main() {
     const userPrompt = process.argv.slice(2).join(' ').trim();
     if (!userPrompt) {
