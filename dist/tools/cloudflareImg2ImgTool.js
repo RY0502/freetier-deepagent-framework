@@ -16,8 +16,8 @@ import { CONFIG } from '../config.js';
  *   to the next configured key. Fails once all configured keys have
  *   been rate-limited.
  * - On network error or transient/"busy" server error (5xx) with the
- *   current key, retries the SAME key up to 2 more times (3 total
- *   attempts), 10 seconds apart, before moving to the next key.
+ *   current credential, retries the SAME credential up to 2 more times
+ *   (3 total attempts), 10 seconds apart, before moving to the next one.
  */
 const CLOUDFLARE_IMG2IMG_MODEL = '@cf/runwayml/stable-diffusion-v1-5-img2img';
 const MAX_RETRIES_PER_KEY = 2;
@@ -25,48 +25,47 @@ const RETRY_INTERVAL_MS = 10_000;
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
-/** Returns whichever of the 1-3 configured img2img API tokens are set. */
-function getConfiguredKeys() {
+/** Returns complete account/token pairs in configured rotation order. */
+function getConfiguredCredentials() {
     return [
-        CONFIG.CLOUDFLARE_IMG2IMG_API_TOKEN_1,
-        CONFIG.CLOUDFLARE_IMG2IMG_API_TOKEN_2,
-        CONFIG.CLOUDFLARE_IMG2IMG_API_TOKEN_3,
-    ].filter((token) => !!token);
+        { index: 1, accountId: CONFIG.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1, apiToken: CONFIG.CLOUDFLARE_IMG2IMG_API_TOKEN_1 },
+        { index: 2, accountId: CONFIG.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_2, apiToken: CONFIG.CLOUDFLARE_IMG2IMG_API_TOKEN_2 },
+        { index: 3, accountId: CONFIG.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_3, apiToken: CONFIG.CLOUDFLARE_IMG2IMG_API_TOKEN_3 },
+    ].filter((credential) => Boolean(credential.accountId && credential.apiToken));
 }
 /**
  * Core img2img call, exported for direct use by domain code as well as
  * by `createCloudflareImg2ImgTool` below for direct agent invocation.
  */
 export async function generateCloudflareImg2Img(params) {
-    const accountId = CONFIG.CLOUDFLARE_IMG2IMG_ACCOUNT_ID;
-    const keys = getConfiguredKeys();
-    if (!accountId || keys.length === 0) {
-        throw new Error('Cloudflare img2img is not configured: set CLOUDFLARE_IMG2IMG_ACCOUNT_ID and at least one of ' +
-            'CLOUDFLARE_IMG2IMG_API_TOKEN_1/2/3.');
+    const credentials = getConfiguredCredentials();
+    if (credentials.length === 0) {
+        throw new Error('Cloudflare img2img is not configured: set at least one complete account/token pair: ' +
+            'CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1/2/3 with CLOUDFLARE_IMG2IMG_API_TOKEN_1/2/3.');
     }
     const strength = params.strength ?? 0.6;
     const imageArray = Array.from(params.imageBytes);
-    const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${CLOUDFLARE_IMG2IMG_MODEL}`;
     let lastError;
-    for (let keyIndex = 0; keyIndex < keys.length; keyIndex++) {
-        const apiToken = keys[keyIndex];
+    for (let credentialIndex = 0; credentialIndex < credentials.length; credentialIndex++) {
+        const credential = credentials[credentialIndex];
+        const url = `https://api.cloudflare.com/client/v4/accounts/${credential.accountId}/ai/run/${CLOUDFLARE_IMG2IMG_MODEL}`;
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_KEY; attempt++) {
             if (attempt > 0)
                 await sleep(RETRY_INTERVAL_MS);
             try {
                 const res = await fetch(url, {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+                    headers: { Authorization: `Bearer ${credential.apiToken}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: params.prompt, image: imageArray, strength }),
                 });
                 if (res.status === 429) {
-                    lastError = new Error(`Cloudflare img2img rate-limited (429) on key ${keyIndex + 1}/${keys.length}`);
-                    break; // stop retrying this key, move to the next one
+                    lastError = new Error(`Cloudflare img2img rate-limited (429) on credential ${credential.index}`);
+                    break; // stop retrying this credential, move to the next one
                 }
                 if (res.status >= 500) {
                     const text = await res.text().catch(() => '');
-                    lastError = new Error(`Cloudflare img2img busy (${res.status}) on key ${keyIndex + 1}: ${text.slice(0, 300)}`);
-                    continue; // retry the same key after cool-off
+                    lastError = new Error(`Cloudflare img2img busy (${res.status}) on credential ${credential.index}: ${text.slice(0, 300)}`);
+                    continue; // retry the same credential after cool-off
                 }
                 if (!res.ok) {
                     const text = await res.text().catch(() => '');
@@ -98,8 +97,8 @@ export function createCloudflareImg2ImgTool() {
             'reference image (e.g. a locked character reference) while changing pose/background/action per the ' +
             'prompt. Provide the reference image as base64 (PNG/JPEG) plus a prompt describing the desired change. ' +
             'For generating a brand-new image with NO reference image, use `generate_image_pollinations` instead. ' +
-            'Automatically rotates across up to 3 configured API keys on rate limiting, and retries transient/busy ' +
-            'errors up to 2 more times (10s apart) per key before moving to the next key.',
+            'Automatically rotates across up to 3 configured account/token pairs on rate limiting, and retries transient/busy ' +
+            'errors up to 2 more times (10s apart) per credential before moving to the next credential.',
         schema: z.object({
             imageBase64: z.string().describe('Base64-encoded reference image (PNG or JPEG) to use as the img2img conditioning input.'),
             prompt: z.string().describe('Text prompt describing the desired pose/scene/action, keeping the same visual identity as the reference image.'),
