@@ -24,6 +24,7 @@ import { DatabaseClient } from '../src/db/client.js';
 import { DeepAgentRunner } from '../src/agents/deepAgentRunner.js';
 import { runProviderSwapChecks, type CheckResult } from './providerSwapChecks.js';
 import { runToolPayloadChecks } from './toolPayloadChecks.js';
+import { runMediaToolChecks } from './mediaToolChecks.js';
 import { EVAL_CASES, type EvalCase } from './cases.js';
 import { EvalCaptureHandler } from './evalCallbackCapture.js';
 import { dateAgeSummary, looksStaleByYear } from './dateHeuristics.js';
@@ -54,9 +55,13 @@ async function runUnitChecks(): Promise<{ passed: number; failed: number }> {
   const toolResults = await runToolPayloadChecks();
   const toolTotals = printResults(toolResults);
 
+  printSection('UNIT CHECKS — orchestrator image/audio tools (mocked fetch, no media outputs)');
+  const mediaResults = await runMediaToolChecks();
+  const mediaTotals = printResults(mediaResults);
+
   return {
-    passed: providerTotals.passed + toolTotals.passed,
-    failed: providerTotals.failed + toolTotals.failed,
+    passed: providerTotals.passed + toolTotals.passed + mediaTotals.passed,
+    failed: providerTotals.failed + toolTotals.failed + mediaTotals.failed,
   };
 }
 

@@ -6,7 +6,7 @@ import { CustomStateStore } from './state/customStateStore.js';
 import { hashUserPrompt } from './state/promptHash.js';
 import { StateStore } from './state/stateStore.js';
 import { SCHEMA_SQL } from './db/schema.js';
-import { createPollinationsImageTool, generatePollinationsImage, type PollinationsImageParams } from './tools/pollinationsImageTool.js';
+import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool, generateCloudflareImg2Img, type CloudflareImg2ImgParams } from './tools/cloudflareImg2ImgTool.js';
 
 /**
@@ -29,12 +29,12 @@ export {
   hashUserPrompt,
   StateStore,
   SCHEMA_SQL,
-  createPollinationsImageTool,
-  generatePollinationsImage,
+  createImageGenTool,
+  createAudioGenTool,
   createCloudflareImg2ImgTool,
   generateCloudflareImg2Img,
 };
-export type { DeepAgentRunnerOptions, RunResult, SubagentDef, PollinationsImageParams, CloudflareImg2ImgParams };
+export type { DeepAgentRunnerOptions, RunResult, SubagentDef, CloudflareImg2ImgParams };
 
 async function main() {
   const userPrompt = process.argv.slice(2).join(' ').trim();

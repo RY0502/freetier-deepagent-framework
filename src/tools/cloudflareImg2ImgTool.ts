@@ -6,7 +6,7 @@ import { CONFIG } from '../config.js';
  * Image-to-image (reference-conditioned) generation via Cloudflare
  * Workers AI's Stable Diffusion 1.5 img2img model. Use this to edit or
  * re-pose an EXISTING reference image while keeping its visual identity,
- * guided by a text prompt -- distinct from `generate_image_pollinations`,
+ * guided by a text prompt -- distinct from `generate_image`,
  * which only generates brand-new images from text with no reference.
  *
  * Retry / key-rotation policy:
@@ -112,7 +112,7 @@ export async function generateCloudflareImg2Img(params: CloudflareImg2ImgParams)
 
 /**
  * Agent-invocable image-to-image tool. Distinct name/description from
- * `generate_image_pollinations` so the deep agent never confuses "edit
+ * `generate_image` so the deep agent never confuses "edit
  * an existing reference image" with "generate a brand-new image".
  */
 export function createCloudflareImg2ImgTool(): DynamicStructuredTool {
@@ -123,7 +123,7 @@ export function createCloudflareImg2ImgTool(): DynamicStructuredTool {
       'by a text prompt -- use this to produce a new pose/scene/angle that keeps the visual identity of a ' +
       'reference image (e.g. a locked character reference) while changing pose/background/action per the ' +
       'prompt. Provide the reference image as base64 (PNG/JPEG) plus a prompt describing the desired change. ' +
-      'For generating a brand-new image with NO reference image, use `generate_image_pollinations` instead. ' +
+      'For generating a brand-new image with NO reference image, use `generate_image` instead. ' +
       'Automatically rotates across up to 3 configured account/token pairs on rate limiting, and retries transient/busy ' +
       'errors up to 2 more times (10s apart) per credential before moving to the next credential.',
     schema: z.object({
