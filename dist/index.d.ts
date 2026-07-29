@@ -6,7 +6,7 @@ import { CustomStateStore } from './state/customStateStore.js';
 import { hashUserPrompt } from './state/promptHash.js';
 import { StateStore } from './state/stateStore.js';
 import { SCHEMA_SQL } from './db/schema.js';
-import { createPollinationsImageTool, generatePollinationsImage, type PollinationsImageParams } from './tools/pollinationsImageTool.js';
+import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool, generateCloudflareImg2Img, type CloudflareImg2ImgParams } from './tools/cloudflareImg2ImgTool.js';
 /**
  * Library entry point for callers embedding this framework (e.g. a
@@ -15,5 +15,5 @@ import { createCloudflareImg2ImgTool, generateCloudflareImg2Img, type Cloudflare
  * consumers only need to `import { DeepAgentRunner, ... } from
  * 'freetier-deepagent-framework'` rather than reaching into `src/`.
  */
-export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createPollinationsImageTool, generatePollinationsImage, createCloudflareImg2ImgTool, generateCloudflareImg2Img, };
-export type { DeepAgentRunnerOptions, RunResult, SubagentDef, PollinationsImageParams, CloudflareImg2ImgParams };
+export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createImageGenTool, createAudioGenTool, createCloudflareImg2ImgTool, generateCloudflareImg2Img, };
+export type { DeepAgentRunnerOptions, RunResult, SubagentDef, CloudflareImg2ImgParams };

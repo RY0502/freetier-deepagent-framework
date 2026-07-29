@@ -6,7 +6,7 @@ import { CustomStateStore } from './state/customStateStore.js';
 import { hashUserPrompt } from './state/promptHash.js';
 import { StateStore } from './state/stateStore.js';
 import { SCHEMA_SQL } from './db/schema.js';
-import { createPollinationsImageTool, generatePollinationsImage } from './tools/pollinationsImageTool.js';
+import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool, generateCloudflareImg2Img } from './tools/cloudflareImg2ImgTool.js';
 /**
  * Library entry point for callers embedding this framework (e.g. a
@@ -15,7 +15,7 @@ import { createCloudflareImg2ImgTool, generateCloudflareImg2Img } from './tools/
  * consumers only need to `import { DeepAgentRunner, ... } from
  * 'freetier-deepagent-framework'` rather than reaching into `src/`.
  */
-export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createPollinationsImageTool, generatePollinationsImage, createCloudflareImg2ImgTool, generateCloudflareImg2Img, };
+export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createImageGenTool, createAudioGenTool, createCloudflareImg2ImgTool, generateCloudflareImg2Img, };
 async function main() {
     const userPrompt = process.argv.slice(2).join(' ').trim();
     if (!userPrompt) {

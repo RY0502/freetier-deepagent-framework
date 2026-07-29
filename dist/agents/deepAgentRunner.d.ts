@@ -38,6 +38,14 @@ export interface DeepAgentRunnerOptions {
      * Useful for projects that already have a preferred LLM provider.
      */
     model?: BaseLanguageModel;
+    /**
+     * Max LangGraph super-steps per stream() call before throwing
+     * GraphRecursionError, passed through to the underlying agent's
+     * `stream()` config. Defaults to 100. Long-running domain tasks with
+     * many sequential tool calls per run (e.g. dozens of per-scene tool
+     * calls in a video-generation pipeline) may need a higher value.
+     */
+    recursionLimit?: number;
 }
 export interface RunResult {
     promptHash: string;
@@ -63,6 +71,7 @@ export declare class DeepAgentRunner {
     private readonly systemPromptExtension?;
     private readonly callbacks;
     private readonly customModel?;
+    private readonly recursionLimit;
     /**
      * @param options.extraTools Additional tools merged with the
      *   framework's built-in tools (tavily_search/crawl, vision_scrape,

@@ -5,7 +5,7 @@ import { ProviderManager } from '../providers/providerManager.js';
 import { classifyProviderError } from '../providers/errorClassifier.js';
 import { createTavilySearchTool, createTavilyCrawlTool } from '../tools/tavilyTools.js';
 import { createVisionScrapeTool, createPageAnalysisTool } from '../tools/visionScrapeTool.js';
-import { createPollinationsImageTool } from '../tools/pollinationsImageTool.js';
+import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool } from '../tools/cloudflareImg2ImgTool.js';
 import { buildDefaultSubagents } from './subagentFactory.js';
 import { LoggingCallbackHandler } from '../callbacks/loggingCallbackHandler.js';
@@ -28,8 +28,9 @@ ${resumeNote}
 - tavily_search / tavily_crawl: internet search and page text extraction. NOTE: Tavily's index can be cached/stale — fine for blogs, articles, tutorials, documentation, past events; do NOT trust it for real-time facts or breaking/latest/today's news. For tavily_search, set \`topic: 'news'\` and \`days\` (e.g. days=1 for "today") to bias results toward recent publish dates when the task is time-sensitive.
 - vision_scrape: extract specific DATA values off a rendered page/screenshot (charts, dashboards, JS-heavy sites, or a real-time value/today's headline you need to read live) via a remote vision model.
 - analyze_page_components: describe a page/screenshot's UI/layout/components (design-review style questions) — NOT for extracting data values, use vision_scrape for that.
-- generate_image_pollinations: generate a brand-new image from a TEXT PROMPT ONLY (no reference image) via the Pollinations AI text-to-image API. Requires a model name (e.g. "flux", "gptimage", "zimage") and a prompt.
-- generate_image_cloudflare_img2img: transform/edit an EXISTING reference image (base64) via Cloudflare Workers AI Stable Diffusion img2img, guided by a text prompt — use this instead of generate_image_pollinations when you need to preserve the visual identity of a reference image while changing its pose/scene/background.
+- generate_image: generate a brand-new image from a text prompt via the @freetier/orchestrator Pollinations provider. Provide a model and output path.
+- generate_audio: generate speech audio from text via the @freetier/orchestrator Groq TTS provider. Provide input text and output path.
+- generate_image_cloudflare_img2img: transform/edit an EXISTING reference image (base64) via Cloudflare Workers AI Stable Diffusion img2img, guided by a text prompt — use this when you need to preserve the visual identity of a reference image while changing its pose/scene/background.
 - Delegate independent, parallelizable sub-tasks to sub-agents instead of doing everything yourself:
   - research-subagent: non-time-sensitive research (blogs, articles, tutorials, history).
   - vision-subagent: screenshot/UI data-extraction or component-analysis tasks.
@@ -63,6 +64,7 @@ export class DeepAgentRunner {
     systemPromptExtension;
     callbacks;
     customModel;
+    recursionLimit;
     /**
      * @param options.extraTools Additional tools merged with the
      *   framework's built-in tools (tavily_search/crawl, vision_scrape,
@@ -82,6 +84,7 @@ export class DeepAgentRunner {
         this.systemPromptExtension = options.systemPromptExtension;
         this.callbacks = [new LoggingCallbackHandler(), ...(options.callbacks ?? [])];
         this.customModel = options.model;
+        this.recursionLimit = options.recursionLimit ?? 100;
     }
     async run(userPrompt) {
         // When a custom model is supplied, skip the built-in provider
@@ -187,7 +190,8 @@ export class DeepAgentRunner {
                 createTavilyCrawlTool(),
                 createVisionScrapeTool(),
                 createPageAnalysisTool(),
-                createPollinationsImageTool(),
+                createImageGenTool(),
+                createAudioGenTool(),
                 createCloudflareImg2ImgTool(),
                 ...this.extraTools,
             ],
@@ -199,7 +203,7 @@ export class DeepAgentRunner {
             ? `Resume this task exactly where it left off: ${userPrompt}`
             : userPrompt;
         logger.info('Starting agent stream', { provider: providerLabel, threadId, messageLength: userMessage.length });
-        const stream = await agentWithPrompt.stream({ messages: [{ role: 'user', content: userMessage }] }, { configurable: { thread_id: threadId }, recursionLimit: 100, callbacks: this.callbacks });
+        const stream = await agentWithPrompt.stream({ messages: [{ role: 'user', content: userMessage }] }, { configurable: { thread_id: threadId }, recursionLimit: this.recursionLimit, callbacks: this.callbacks });
         let lastTodosSeen = existingTodos;
         let finalMessageText = '';
         let chunkCount = 0;

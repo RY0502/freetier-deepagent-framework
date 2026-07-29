@@ -14,7 +14,7 @@ export interface CloudflareImg2ImgParams {
 export declare function generateCloudflareImg2Img(params: CloudflareImg2ImgParams): Promise<Buffer>;
 /**
  * Agent-invocable image-to-image tool. Distinct name/description from
- * `generate_image_pollinations` so the deep agent never confuses "edit
+ * `generate_image` so the deep agent never confuses "edit
  * an existing reference image" with "generate a brand-new image".
  */
 export declare function createCloudflareImg2ImgTool(): DynamicStructuredTool;
