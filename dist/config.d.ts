@@ -5,12 +5,15 @@ import 'dotenv/config';
  */
 export declare const CONFIG: {
     NVIDIA_API_KEY: string;
+    REQUESTY_API_KEY: string;
     OPENROUTER_API_KEY: string;
     HUGGINGFACE_API_KEY: string;
     NVIDIA_DEEP_AGENT_MODEL: string;
+    REQUESTY_DEEP_AGENT_MODEL: string;
     OPENROUTER_DEEP_AGENT_MODEL: string;
     HUGGINGFACE_DEEP_AGENT_MODEL: string;
     NVIDIA_BASE_URL: string;
+    REQUESTY_BASE_URL: string;
     OPENROUTER_BASE_URL: string;
     HUGGINGFACE_BASE_URL: string;
     TAVILY_API_KEY: string;

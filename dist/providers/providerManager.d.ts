@@ -1,5 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
-export type ProviderName = 'nvidia' | 'openrouter' | 'huggingface';
+export type ProviderName = 'nvidia' | 'requesty' | 'openrouter' | 'huggingface';
 export declare const PROVIDER_ORDER: ProviderName[];
 /**
  * Builds a LangChain-compatible chat model for the given provider.

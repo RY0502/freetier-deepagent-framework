@@ -1,6 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { CONFIG } from '../config.js';
-export const PROVIDER_ORDER = ['nvidia', 'openrouter', 'huggingface'];
+export const PROVIDER_ORDER = ['nvidia', 'requesty', 'openrouter', 'huggingface'];
 function providerDefs() {
     return {
         nvidia: {
@@ -8,6 +8,12 @@ function providerDefs() {
             apiKey: CONFIG.NVIDIA_API_KEY,
             baseURL: CONFIG.NVIDIA_BASE_URL,
             model: CONFIG.NVIDIA_DEEP_AGENT_MODEL,
+        },
+        requesty: {
+            name: 'requesty',
+            apiKey: CONFIG.REQUESTY_API_KEY,
+            baseURL: CONFIG.REQUESTY_BASE_URL,
+            model: CONFIG.REQUESTY_DEEP_AGENT_MODEL,
         },
         openrouter: {
             name: 'openrouter',
