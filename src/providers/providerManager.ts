@@ -1,9 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { CONFIG } from '../config.js';
 
-export type ProviderName = 'anyapi' | 'requesty' | 'nvidia' | 'openrouter' | 'huggingface';
+export type ProviderName = 'requesty' | 'nvidia' | 'openrouter' | 'huggingface' | 'anyapi';
 
-export const PROVIDER_ORDER: ProviderName[] = ['anyapi', 'requesty', 'nvidia', 'openrouter', 'huggingface'];
+export const PROVIDER_ORDER: ProviderName[] = ['requesty', 'nvidia', 'openrouter', 'huggingface', 'anyapi'];
 
 interface ProviderDef {
   name: ProviderName;

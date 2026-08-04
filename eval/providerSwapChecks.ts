@@ -7,6 +7,7 @@
  * differently (so they do NOT trigger a pointless provider swap).
  */
 import { ProviderManager, PROVIDER_ORDER } from '../src/providers/providerManager.js';
+import { CONFIG } from '../src/config.js';
 import { classifyProviderError } from '../src/providers/errorClassifier.js';
 
 export interface CheckResult {
@@ -39,22 +40,24 @@ export function runProviderSwapChecks(): CheckResult[] {
     });
   }
 
-  // 1b. AnyApi multi-key rotation happens before moving to Requesty.
+  // 1b. AnyApi multi-key rotation happens at the end of the provider chain.
   {
+    const anyApiKeys = [CONFIG.ANYAPI_AGENT_KEY_1, CONFIG.ANYAPI_AGENT_KEY_2, CONFIG.ANYAPI_AGENT_KEY_3, CONFIG.ANYAPI_AGENT_KEY_4].filter(Boolean);
     const pm = new ProviderManager('anyapi', 0);
     const seen: string[] = [`${pm.current}[key=${pm.currentAnyApiKeyIndex}]`];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 1; i < anyApiKeys.length; i++) {
       const next = pm.switchToNext();
       if (!next) break;
       seen.push(`${next}[key=${pm.current === 'anyapi' ? pm.currentAnyApiKeyIndex : 0}]`);
     }
-    const pass = seen[0] === 'anyapi[key=0]' && seen[1] === 'anyapi[key=1]' && seen[2] === 'anyapi[key=2]' && seen[3] === 'anyapi[key=3]' && seen[4] === 'requesty[key=0]';
+    const expected = anyApiKeys.map((_, index) => `anyapi[key=${index}]`);
+    const pass = anyApiKeys.length > 0 && JSON.stringify(seen) === JSON.stringify(expected) && pm.switchToNext() === null;
     results.push({
       id: 'anyapi-multi-key-rotation',
       pass,
       detail: pass
-        ? 'AnyApi rotated through all configured keys before moving to Requesty.'
-        : `Expected anyapi[0->1->2->3] then requesty, got ${seen.join(' -> ')}`,
+        ? 'AnyApi rotated through all configured keys before the provider chain exhausted.'
+        : `Expected ${expected.join(' -> ')} then exhaustion, got ${seen.join(' -> ')}`,
     });
   }
 
