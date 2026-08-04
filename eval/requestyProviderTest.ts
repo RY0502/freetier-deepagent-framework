@@ -10,7 +10,7 @@
  * Usage:
  *   REQUESTY_API_KEY=your_key tsx eval/requestyProviderTest.ts
  */
-import { CONFIG, validateConfig } from '../src/config.js';
+import { CONFIG } from '../src/config.js';
 import { buildProviderModel } from '../src/providers/providerManager.js';
 
 async function testRequestyProvider(): Promise<void> {
@@ -18,7 +18,6 @@ async function testRequestyProvider(): Promise<void> {
   console.log('Requesty Provider Live Integration Test');
   console.log('='.repeat(60));
 
-  // Validate that REQUESTY_API_KEY is set
   if (!CONFIG.REQUESTY_API_KEY) {
     console.error('❌ REQUESTY_API_KEY is not set in environment variables.');
     console.error('   Set it in .env or pass it directly: REQUESTY_API_KEY=your_key tsx eval/requestyProviderTest.ts');
@@ -41,16 +40,16 @@ async function testRequestyProvider(): Promise<void> {
     const startTime = Date.now();
     const response = await model.invoke(testPrompt);
     const duration = Date.now() - startTime;
+    const responseText = typeof response.content === 'string'
+      ? response.content
+      : Array.isArray(response.content)
+        ? response.content.map((part) => typeof part === 'string' ? part : ('text' in part ? String(part.text ?? '') : '')).join('')
+        : String(response.content ?? '');
 
     console.log(`\n✓ Response received in ${duration}ms`);
-    console.log(`Response content: "${response.content}"`);
+    console.log(`Response content: "${responseText}"`);
 
-    // Validate response
-    if (!response.content || typeof response.content !== 'string') {
-      throw new Error('Invalid response: content is missing or not a string');
-    }
-
-    if (response.content.length === 0) {
+    if (!responseText || responseText.trim().length === 0) {
       throw new Error('Invalid response: content is empty');
     }
 

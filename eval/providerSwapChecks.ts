@@ -22,18 +22,39 @@ export function runProviderSwapChecks(): CheckResult[] {
   {
     const pm = new ProviderManager(PROVIDER_ORDER[0]);
     const seen: string[] = [pm.current];
-    for (let i = 1; i < PROVIDER_ORDER.length; i++) {
+    for (let i = 0; i < 16; i++) {
       const next = pm.switchToNext();
+      if (!next) break;
       seen.push(next ?? 'null');
     }
     const exhausted = pm.switchToNext();
-    const pass = JSON.stringify(seen) === JSON.stringify(PROVIDER_ORDER) && exhausted === null;
+    const uniqueSeen = seen.filter((provider, index) => index === 0 || provider !== seen[index - 1]);
+    const pass = JSON.stringify(uniqueSeen) === JSON.stringify(PROVIDER_ORDER) && exhausted === null;
     results.push({
       id: 'provider-rotation-order',
       pass,
       detail: pass
         ? `Rotated through ${PROVIDER_ORDER.join(' -> ')} then exhausted as expected.`
-        : `Expected rotation ${PROVIDER_ORDER.join(' -> ')}, got ${seen.join(' -> ')}; exhausted=${exhausted}`,
+        : `Expected rotation ${PROVIDER_ORDER.join(' -> ')}, got ${uniqueSeen.join(' -> ')} from raw path ${seen.join(' -> ')}; exhausted=${exhausted}`,
+    });
+  }
+
+  // 1b. AnyApi multi-key rotation happens before moving to Requesty.
+  {
+    const pm = new ProviderManager('anyapi', 0);
+    const seen: string[] = [`${pm.current}[key=${pm.currentAnyApiKeyIndex}]`];
+    for (let i = 0; i < 4; i++) {
+      const next = pm.switchToNext();
+      if (!next) break;
+      seen.push(`${next}[key=${pm.current === 'anyapi' ? pm.currentAnyApiKeyIndex : 0}]`);
+    }
+    const pass = seen[0] === 'anyapi[key=0]' && seen[1] === 'anyapi[key=1]' && seen[2] === 'anyapi[key=2]' && seen[3] === 'anyapi[key=3]' && seen[4] === 'requesty[key=0]';
+    results.push({
+      id: 'anyapi-multi-key-rotation',
+      pass,
+      detail: pass
+        ? 'AnyApi rotated through all configured keys before moving to Requesty.'
+        : `Expected anyapi[0->1->2->3] then requesty, got ${seen.join(' -> ')}`,
     });
   }
 

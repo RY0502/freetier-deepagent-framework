@@ -13,6 +13,7 @@
     "db:setup": "tsx src/db/setup.ts",
     "db:cleanup": "tsx cleanup-db.ts",
     "eval": "tsx eval/runEval.ts",
+    "test:anyapi": "tsx eval/anyApiProviderTest.ts",
     "test:requesty": "tsx eval/requestyProviderTest.ts"
   },
   "keywords": [

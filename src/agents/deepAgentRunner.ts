@@ -183,12 +183,13 @@ export class DeepAgentRunner {
   }
 
   /**
-   * Run using the built-in NVIDIA → OpenRouter → HuggingFace provider
-   * rotation. On quota exhaustion, switches to the next provider and
-   * rebuilds the deep agent with the same thread/checkpointer/backend.
+   * Run using the built-in AnyApi → Requesty → NVIDIA → OpenRouter → HuggingFace
+   * rotation. AnyApi and Requesty each exhaust their configured key pools before
+   * advancing to the next provider. On quota exhaustion, switches to the next
+   * key/provider and rebuilds the deep agent with the same thread/checkpointer/backend.
    */
   private async runWithProviderRotation(userPrompt: string): Promise<RunResult> {
-    const initialProvider: ProviderName = 'nvidia';
+    const initialProvider: ProviderName = 'anyapi';
     const runState = await this.stateStore.loadOrCreate(userPrompt, initialProvider);
     const providerManager = new ProviderManager(runState.currentProvider as ProviderName);
 
