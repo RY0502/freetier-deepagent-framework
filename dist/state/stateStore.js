@@ -25,6 +25,7 @@ export class StateStore {
             // so we start fresh with a clean todo list and provider state.
             if (existing.status === 'failed') {
                 console.log(`[StateStore] Resetting failed run ${promptHash} to provider ${initialProvider}`);
+                await this.db.deleteThreadCheckpoints(existing.thread_id);
                 await this.db.resetFailedRun(promptHash, initialProvider);
                 await this.db.logEvent(promptHash, 'run_reset', { previousStatus: 'failed', provider: initialProvider });
                 console.log(`[StateStore] Reset complete for ${promptHash}`);
@@ -72,8 +73,13 @@ export class StateStore {
         await this.db.logEvent(promptHash, 'provider_switch', { fromProvider, toProvider, reason });
     }
     async complete(promptHash, finalResult) {
+        const run = await this.db.getRun(promptHash);
         await this.db.setFinalResult(promptHash, finalResult);
         await this.db.logEvent(promptHash, 'run_completed', {});
+        if (run?.thread_id) {
+            await this.db.deleteThreadCheckpoints(run.thread_id);
+        }
+        await this.db.compactCompletedRun(promptHash);
     }
     async fail(promptHash, errorMessage) {
         await this.db.updateRunStatus(promptHash, 'failed', errorMessage);

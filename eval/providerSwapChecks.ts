@@ -40,10 +40,31 @@ export function runProviderSwapChecks(): CheckResult[] {
     });
   }
 
-  // 1b. AnyApi multi-key rotation happens at the end of the provider chain.
+  // 1b. NVIDIA multi-key rotation happens before moving to Requesty.
+  {
+    const nvidiaKeys = [CONFIG.NVIDIA_DEEP_AGENT_API_KEY_1, CONFIG.NVIDIA_DEEP_AGENT_API_KEY_2, CONFIG.NVIDIA_DEEP_AGENT_API_KEY_3, CONFIG.NVIDIA_DEEP_AGENT_API_KEY_4].filter(Boolean);
+    const pm = new ProviderManager('nvidia', 0, 0);
+    const seen: string[] = [`${pm.current}[key=${pm.currentNvidiaKeyIndex}]`];
+    for (let i = 1; i < nvidiaKeys.length; i++) {
+      const next = pm.switchToNext();
+      if (!next) break;
+      seen.push(`${next}[key=${pm.current === 'nvidia' ? pm.currentNvidiaKeyIndex : 0}]`);
+    }
+    const expected = nvidiaKeys.map((_, index) => `nvidia[key=${index}]`);
+    const pass = nvidiaKeys.length > 0 && JSON.stringify(seen) === JSON.stringify(expected) && pm.switchToNext() === 'anyapi';
+    results.push({
+      id: 'nvidia-multi-key-rotation',
+      pass,
+      detail: pass
+        ? 'NVIDIA rotated through all configured keys before moving to AnyApi.'
+        : `Expected ${expected.join(' -> ')} then anyapi, got ${seen.join(' -> ')}`,
+    });
+  }
+
+  // 1c. AnyApi multi-key rotation happens before moving to Requesty.
   {
     const anyApiKeys = [CONFIG.ANYAPI_AGENT_KEY_1, CONFIG.ANYAPI_AGENT_KEY_2, CONFIG.ANYAPI_AGENT_KEY_3, CONFIG.ANYAPI_AGENT_KEY_4].filter(Boolean);
-    const pm = new ProviderManager('anyapi', 0);
+    const pm = new ProviderManager('anyapi', 0, 0);
     const seen: string[] = [`${pm.current}[key=${pm.currentAnyApiKeyIndex}]`];
     for (let i = 1; i < anyApiKeys.length; i++) {
       const next = pm.switchToNext();
@@ -51,13 +72,13 @@ export function runProviderSwapChecks(): CheckResult[] {
       seen.push(`${next}[key=${pm.current === 'anyapi' ? pm.currentAnyApiKeyIndex : 0}]`);
     }
     const expected = anyApiKeys.map((_, index) => `anyapi[key=${index}]`);
-    const pass = anyApiKeys.length > 0 && JSON.stringify(seen) === JSON.stringify(expected) && pm.switchToNext() === null;
+    const pass = anyApiKeys.length > 0 && JSON.stringify(seen) === JSON.stringify(expected) && pm.switchToNext() === 'requesty';
     results.push({
       id: 'anyapi-multi-key-rotation',
       pass,
       detail: pass
-        ? 'AnyApi rotated through all configured keys before the provider chain exhausted.'
-        : `Expected ${expected.join(' -> ')} then exhaustion, got ${seen.join(' -> ')}`,
+        ? 'AnyApi rotated through all configured keys before moving to Requesty.'
+        : `Expected ${expected.join(' -> ')} then requesty, got ${seen.join(' -> ')}`,
     });
   }
 
@@ -106,17 +127,34 @@ export function runProviderSwapChecks(): CheckResult[] {
     });
   }
 
-  // 5. Transient network/5xx errors should be retryable on the SAME provider, not swapped.
+  // 5. Requesty transient network/5xx errors are rotation-eligible.
   {
     const transient = Object.assign(new Error('Service temporarily unavailable'), { status: 503 });
     const kind = classifyProviderError(transient);
-    const pass = kind === 'retryable';
+    const pm = new ProviderManager('requesty');
+    const next = kind === 'retryable' ? pm.switchToNext() : null;
+    const pass = kind === 'retryable' && next === 'openrouter';
+    results.push({
+      id: 'requesty-transient-rotates-provider',
+      pass,
+      detail: pass
+        ? 'Requesty retryable/transient errors advance to the next provider.'
+        : `Expected Requesty transient error to rotate to 'openrouter', got kind='${kind}' next='${next}'.`,
+    });
+  }
+
+  // 6. Transient network/5xx errors should remain retryable on non-Requesty providers.
+  {
+    const transient = Object.assign(new Error('Service temporarily unavailable'), { status: 503 });
+    const kind = classifyProviderError(transient);
+    const pm = new ProviderManager('nvidia');
+    const pass = kind === 'retryable' && pm.current === 'nvidia' && pm.currentNvidiaKeyIndex === 0;
     results.push({
       id: 'error-classify-retryable-same-provider',
       pass,
       detail: pass
-        ? '5xx/transient errors correctly classified as "retryable" (retry same provider before swapping).'
-        : `Expected 'retryable', got '${kind}' for a 503 error.`,
+        ? '5xx/transient errors remain same-provider retryable for non-Requesty providers.'
+        : `Expected non-Requesty transient errors to remain same-provider retryable, got '${kind}'.`,
     });
   }
 

@@ -1,9 +1,9 @@
 import { ChatOpenAI } from '@langchain/openai';
 import { CONFIG } from '../config.js';
 
-export type ProviderName = 'requesty' | 'nvidia' | 'openrouter' | 'huggingface' | 'anyapi';
+export type ProviderName = 'nvidia' | 'requesty' | 'openrouter' | 'anyapi' | 'huggingface';
 
-export const PROVIDER_ORDER: ProviderName[] = ['requesty', 'nvidia', 'openrouter', 'huggingface', 'anyapi'];
+export const PROVIDER_ORDER: ProviderName[] = ['nvidia', 'anyapi', 'requesty', 'openrouter', 'huggingface'];
 
 interface ProviderDef {
   name: ProviderName;
@@ -12,13 +12,26 @@ interface ProviderDef {
   model: string;
 }
 
+/** Returns the configured NVIDIA deep-agent keys in rotation order. */
+function getNvidiaKeys(): string[] {
+  return [CONFIG.NVIDIA_DEEP_AGENT_API_KEY_1, CONFIG.NVIDIA_DEEP_AGENT_API_KEY_2, CONFIG.NVIDIA_DEEP_AGENT_API_KEY_3, CONFIG.NVIDIA_DEEP_AGENT_API_KEY_4].filter(Boolean);
+}
+
+/** Returns the configured AnyApi keys in rotation order. */
 function getAnyApiKeys(): string[] {
   return [CONFIG.ANYAPI_AGENT_KEY_1, CONFIG.ANYAPI_AGENT_KEY_2, CONFIG.ANYAPI_AGENT_KEY_3, CONFIG.ANYAPI_AGENT_KEY_4].filter(Boolean);
 }
 
-function providerDefs(anyApiKeyIndex: number): Record<ProviderName, ProviderDef> {
+function providerDefs(nvidiaKeyIndex: number, anyApiKeyIndex: number): Record<ProviderName, ProviderDef> {
+  const nvidiaKeys = getNvidiaKeys();
   const anyApiKeys = getAnyApiKeys();
   return {
+    nvidia: {
+      name: 'nvidia',
+      apiKey: nvidiaKeys[nvidiaKeyIndex] ?? nvidiaKeys[0] ?? '',
+      baseURL: CONFIG.NVIDIA_BASE_URL,
+      model: CONFIG.NVIDIA_DEEP_AGENT_MODEL,
+    },
     anyapi: {
       name: 'anyapi',
       apiKey: anyApiKeys[anyApiKeyIndex] ?? anyApiKeys[0] ?? '',
@@ -30,12 +43,6 @@ function providerDefs(anyApiKeyIndex: number): Record<ProviderName, ProviderDef>
       apiKey: CONFIG.REQUESTY_API_KEY,
       baseURL: CONFIG.REQUESTY_BASE_URL,
       model: CONFIG.REQUESTY_DEEP_AGENT_MODEL,
-    },
-    nvidia: {
-      name: 'nvidia',
-      apiKey: CONFIG.NVIDIA_API_KEY,
-      baseURL: CONFIG.NVIDIA_BASE_URL,
-      model: CONFIG.NVIDIA_DEEP_AGENT_MODEL,
     },
     openrouter: {
       name: 'openrouter',
@@ -61,8 +68,8 @@ function providerDefs(anyApiKeyIndex: number): Record<ProviderName, ProviderDef>
  * id is sufficient — no bespoke per-provider SDK is required. This model
  * is passed directly to `createDeepAgent({ model })`.
  */
-export function buildProviderModel(provider: ProviderName, anyApiKeyIndex = 0): ChatOpenAI {
-  const def = providerDefs(anyApiKeyIndex)[provider];
+export function buildProviderModel(provider: ProviderName, nvidiaKeyIndex = 0, anyApiKeyIndex = 0): ChatOpenAI {
+  const def = providerDefs(nvidiaKeyIndex, anyApiKeyIndex)[provider];
   return new ChatOpenAI({
     apiKey: def.apiKey,
     model: def.model,
@@ -81,11 +88,13 @@ export function buildProviderModel(provider: ProviderName, anyApiKeyIndex = 0): 
  */
 export class ProviderManager {
   private currentIndex: number;
+  private nvidiaKeyIndex: number;
   private anyApiKeyIndex: number;
 
-  constructor(startProvider?: ProviderName, startAnyApiKeyIndex = 0) {
+  constructor(startProvider?: ProviderName, startNvidiaKeyIndex = 0, startAnyApiKeyIndex = 0) {
     this.currentIndex = startProvider ? PROVIDER_ORDER.indexOf(startProvider) : 0;
     if (this.currentIndex === -1) this.currentIndex = 0;
+    this.nvidiaKeyIndex = startNvidiaKeyIndex;
     this.anyApiKeyIndex = startAnyApiKeyIndex;
   }
 
@@ -93,20 +102,31 @@ export class ProviderManager {
     return PROVIDER_ORDER[this.currentIndex];
   }
 
+  /** Returns the active NVIDIA key index when NVIDIA is the current provider. */
+  get currentNvidiaKeyIndex(): number {
+    return this.nvidiaKeyIndex;
+  }
+
+  /** Returns the active AnyApi key index when AnyApi is the current provider. */
   get currentAnyApiKeyIndex(): number {
     return this.anyApiKeyIndex;
   }
 
   getModel(): ChatOpenAI {
-    return buildProviderModel(this.current, this.anyApiKeyIndex);
+    return buildProviderModel(this.current, this.nvidiaKeyIndex, this.anyApiKeyIndex);
   }
 
   /**
-   * Advances to the next provider. Returns null once all providers have
-   * been exhausted in this rotation (caller should treat this as fatal).
+   * Advances to the next NVIDIA key, next AnyApi key, or next provider.
+   * Returns null once all providers have been exhausted in this rotation.
    */
   switchToNext(): ProviderName | null {
+    const nvidiaKeys = getNvidiaKeys();
     const anyApiKeys = getAnyApiKeys();
+    if (this.current === 'nvidia' && this.nvidiaKeyIndex + 1 < nvidiaKeys.length) {
+      this.nvidiaKeyIndex += 1;
+      return this.current;
+    }
     if (this.current === 'anyapi' && this.anyApiKeyIndex + 1 < anyApiKeys.length) {
       this.anyApiKeyIndex += 1;
       return this.current;
@@ -116,12 +136,18 @@ export class ProviderManager {
       return null;
     }
     this.currentIndex += 1;
+    this.nvidiaKeyIndex = 0;
     this.anyApiKeyIndex = 0;
     return this.current;
   }
 
+  /** Returns true while another key or provider remains available to try. */
   hasMoreProviders(): boolean {
+    const nvidiaKeys = getNvidiaKeys();
     const anyApiKeys = getAnyApiKeys();
+    if (this.current === 'nvidia' && this.nvidiaKeyIndex + 1 < nvidiaKeys.length) {
+      return true;
+    }
     if (this.current === 'anyapi' && this.anyApiKeyIndex + 1 < anyApiKeys.length) {
       return true;
     }

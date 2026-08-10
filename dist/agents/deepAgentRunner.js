@@ -120,9 +120,12 @@ export class DeepAgentRunner {
         }
     }
     /**
-     * Run using the built-in NVIDIA → OpenRouter → HuggingFace provider
-     * rotation. On quota exhaustion, switches to the next provider and
-     * rebuilds the deep agent with the same thread/checkpointer/backend.
+     * Run using the built-in NVIDIA → AnyApi → Requesty → OpenRouter → HuggingFace
+     * rotation. NVIDIA exhausts its configured key pool before moving to AnyApi,
+     * and AnyApi exhausts its configured key pool before moving to Requesty.
+     * On quota exhaustion, or on Requesty-specific transient failures, switches
+     * to the next key/provider and rebuilds the deep agent with the same
+     * thread/checkpointer/backend.
      */
     async runWithProviderRotation(userPrompt) {
         const initialProvider = 'nvidia';
@@ -148,8 +151,9 @@ export class DeepAgentRunner {
             catch (error) {
                 const kind = classifyProviderError(error);
                 const message = error instanceof Error ? error.message : String(error);
+                const shouldRotate = kind === 'quota' || (kind === 'retryable' && providerManager.current === 'requesty');
                 logger.error('Attempt failed', { promptHash: runState.promptHash, attempt: attemptCount, provider: providerManager.current, kind, message: message.slice(0, 200) });
-                if (kind === 'quota') {
+                if (shouldRotate) {
                     const from = providerManager.current;
                     const next = providerManager.switchToNext();
                     if (!next) {
@@ -158,7 +162,7 @@ export class DeepAgentRunner {
                         throw new Error(`All providers exhausted for task ${runState.promptHash}. Last error: ${message}`);
                     }
                     await this.stateStore.recordProviderSwitch(runState.promptHash, from, next, message);
-                    logger.warn('Provider quota exhausted — switching provider', { promptHash: runState.promptHash, from, to: next, reason: message.slice(0, 150) });
+                    logger.warn('Provider failure triggered rotation', { promptHash: runState.promptHash, from, to: next, kind, reason: message.slice(0, 150) });
                     // Refresh known todos from durable store before retrying with the new provider,
                     // in case the failure happened mid-write.
                     lastKnownTodos = (await this.stateStore.loadOrCreate(userPrompt, next)).todos;

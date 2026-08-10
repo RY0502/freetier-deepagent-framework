@@ -52,6 +52,13 @@ export declare class DatabaseClient {
     saveCheckpoint(threadId: string, checkpointId: string, checkpoint: any, metadata: any, parentCheckpointId?: string): Promise<void>;
     listCheckpoints(threadId: string, limit?: number): Promise<any[]>;
     saveCheckpointWrite(threadId: string, checkpointNs: string, checkpointId: string, taskId: string, idx: number, channel: string, value: any): Promise<void>;
+    /** Delete all LangGraph checkpoint rows for a thread after the run no longer needs graph-level resume. */
+    deleteThreadCheckpoints(threadId: string): Promise<void>;
+    /**
+     * Compact non-essential durable rows for a completed run while preserving prompt identity,
+     * final result, and caller-defined custom state.
+     */
+    compactCompletedRun(promptHash: string): Promise<void>;
     /**
      * Fetch one caller-defined state value for a run, or null if never set.
      * `stateKey` is entirely caller-defined (e.g. "character:Pip:pose:front").

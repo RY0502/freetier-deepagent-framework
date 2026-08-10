@@ -158,6 +158,19 @@ export class DatabaseClient {
       DO UPDATE SET channel = ${channel}, value = ${JSON.stringify(value)}
     `;
     }
+    /** Delete all LangGraph checkpoint rows for a thread after the run no longer needs graph-level resume. */
+    async deleteThreadCheckpoints(threadId) {
+        await this.sql `DELETE FROM checkpoint_writes WHERE thread_id = ${threadId}`;
+        await this.sql `DELETE FROM checkpoints WHERE thread_id = ${threadId}`;
+    }
+    /**
+     * Compact non-essential durable rows for a completed run while preserving prompt identity,
+     * final result, and caller-defined custom state.
+     */
+    async compactCompletedRun(promptHash) {
+        await this.sql `DELETE FROM agent_todos WHERE prompt_hash = ${promptHash}`;
+        await this.sql `DELETE FROM agent_events WHERE prompt_hash = ${promptHash}`;
+    }
     // ---- Generic caller-defined custom state (fine-grained sub-step checkpointing) ----
     /**
      * Fetch one caller-defined state value for a run, or null if never set.

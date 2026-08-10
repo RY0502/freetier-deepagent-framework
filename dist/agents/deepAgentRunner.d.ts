@@ -90,9 +90,12 @@ export declare class DeepAgentRunner {
      */
     private runWithCustomModel;
     /**
-     * Run using the built-in NVIDIA → OpenRouter → HuggingFace provider
-     * rotation. On quota exhaustion, switches to the next provider and
-     * rebuilds the deep agent with the same thread/checkpointer/backend.
+     * Run using the built-in NVIDIA → AnyApi → Requesty → OpenRouter → HuggingFace
+     * rotation. NVIDIA exhausts its configured key pool before moving to AnyApi,
+     * and AnyApi exhausts its configured key pool before moving to Requesty.
+     * On quota exhaustion, or on Requesty-specific transient failures, switches
+     * to the next key/provider and rebuilds the deep agent with the same
+     * thread/checkpointer/backend.
      */
     private runWithProviderRotation;
     /**

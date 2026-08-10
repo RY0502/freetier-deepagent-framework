@@ -4,14 +4,23 @@ import 'dotenv/config';
  * Fails fast on startup if required env vars are missing.
  */
 export declare const CONFIG: {
-    NVIDIA_API_KEY: string;
+    ANYAPI_AGENT_KEY_1: string;
+    ANYAPI_AGENT_KEY_2: string;
+    ANYAPI_AGENT_KEY_3: string;
+    ANYAPI_AGENT_KEY_4: string;
     REQUESTY_API_KEY: string;
+    NVIDIA_DEEP_AGENT_API_KEY_1: string;
+    NVIDIA_DEEP_AGENT_API_KEY_2: string;
+    NVIDIA_DEEP_AGENT_API_KEY_3: string;
+    NVIDIA_DEEP_AGENT_API_KEY_4: string;
     OPENROUTER_API_KEY: string;
     HUGGINGFACE_API_KEY: string;
+    ANYAPI_DEEP_AGENT_MODEL: string;
     NVIDIA_DEEP_AGENT_MODEL: string;
     REQUESTY_DEEP_AGENT_MODEL: string;
     OPENROUTER_DEEP_AGENT_MODEL: string;
     HUGGINGFACE_DEEP_AGENT_MODEL: string;
+    ANYAPI_BASE_URL: string;
     NVIDIA_BASE_URL: string;
     REQUESTY_BASE_URL: string;
     OPENROUTER_BASE_URL: string;
