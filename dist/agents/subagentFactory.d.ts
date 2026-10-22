@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import type { LanguageModelLike } from '@langchain/core/language_models/base';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+import type { AgentMiddleware } from 'langchain';
 /** Minimal shape `deepagents`' subagent config expects. */
 export interface SubagentDef {
     name: string;
@@ -8,6 +9,7 @@ export interface SubagentDef {
     systemPrompt: string;
     tools: DynamicStructuredTool[];
     model: LanguageModelLike;
+    middleware?: AgentMiddleware[];
 }
 /**
  * Sub-agent definitions for `deepagents`' subagent config, used for

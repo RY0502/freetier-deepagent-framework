@@ -1,4 +1,5 @@
 import { createDeepAgent, FilesystemBackend } from 'deepagents';
+import { todoListMiddleware } from 'langchain';
 import { NeonCheckpointSaver } from '../db/neonCheckpointer.js';
 import { StateStore } from '../state/stateStore.js';
 import { ProviderManager } from '../providers/providerManager.js';
@@ -9,6 +10,7 @@ import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool } from '../tools/cloudflareImg2ImgTool.js';
 import { buildDefaultSubagents } from './subagentFactory.js';
 import { LoggingCallbackHandler } from '../callbacks/loggingCallbackHandler.js';
+export const TodoListMiddleware = todoListMiddleware;
 const logger = {
     info: (msg, meta) => console.log(`[deep-agent-orchestrator] ${msg}`, meta ?? ''),
     warn: (msg, meta) => console.warn(`[deep-agent-orchestrator] ${msg}`, meta ?? ''),
@@ -61,6 +63,7 @@ export class DeepAgentRunner {
     backend;
     extraTools;
     extraSubagents;
+    extraMiddleware;
     systemPromptExtension;
     callbacks;
     customModel;
@@ -74,13 +77,16 @@ export class DeepAgentRunner {
      *   the built-in research/vision/live-data sub-agents. Useful for
      *   giving a specialized caller its own parallelizable sub-agent
      *   without having to fork this framework.
+     * @param options.backend Concrete BackendProtocol instance (defaults to new FilesystemBackend()).
+     * @param options.extraMiddleware Additional middleware appended after TodoListMiddleware.
      */
     constructor(db, options = {}) {
         this.stateStore = new StateStore(db);
         this.checkpointer = new NeonCheckpointSaver(db);
-        this.backend = new FilesystemBackend();
+        this.backend = options.backend ?? new FilesystemBackend();
         this.extraTools = options.extraTools ?? [];
         this.extraSubagents = options.extraSubagents ?? [];
+        this.extraMiddleware = options.extraMiddleware ?? options.middleware ?? [];
         this.systemPromptExtension = options.systemPromptExtension;
         this.callbacks = [new LoggingCallbackHandler(), ...(options.callbacks ?? [])];
         this.customModel = options.model;
@@ -200,6 +206,7 @@ export class DeepAgentRunner {
                 ...this.extraTools,
             ],
             subagents: [...buildDefaultSubagents(this.callbacks), ...this.extraSubagents],
+            middleware: [TodoListMiddleware(), ...this.extraMiddleware],
             backend: this.backend,
             checkpointer: this.checkpointer,
         });

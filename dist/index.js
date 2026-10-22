@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { CONFIG, validateConfig } from './config.js';
 import { DatabaseClient } from './db/client.js';
 import { DeepAgentRunner } from './agents/deepAgentRunner.js';
@@ -8,6 +10,9 @@ import { StateStore } from './state/stateStore.js';
 import { SCHEMA_SQL } from './db/schema.js';
 import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool, generateCloudflareImg2Img } from './tools/cloudflareImg2ImgTool.js';
+import { todoListMiddleware } from 'langchain';
+import { FilesystemBackend, StoreBackend } from 'deepagents';
+const TodoListMiddleware = todoListMiddleware;
 /**
  * Library entry point for callers embedding this framework (e.g. a
  * specialized orchestrator wrapping `DeepAgentRunner` for its own
@@ -15,7 +20,7 @@ import { createCloudflareImg2ImgTool, generateCloudflareImg2Img } from './tools/
  * consumers only need to `import { DeepAgentRunner, ... } from
  * 'freetier-deepagent-framework'` rather than reaching into `src/`.
  */
-export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createImageGenTool, createAudioGenTool, createCloudflareImg2ImgTool, generateCloudflareImg2Img, };
+export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createImageGenTool, createAudioGenTool, createCloudflareImg2ImgTool, generateCloudflareImg2Img, todoListMiddleware, TodoListMiddleware, FilesystemBackend, StoreBackend, };
 async function main() {
     const userPrompt = process.argv.slice(2).join(' ').trim();
     if (!userPrompt) {
@@ -44,7 +49,7 @@ async function main() {
 // (e.g. `npm run dev -- "..."` or `node dist/index.js`), not when it is
 // imported as a library by another package (e.g.
 // `import { DeepAgentRunner } from 'freetier-deepagent-framework'`).
-const isDirectRun = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+const isDirectRun = Boolean(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]));
 if (isDirectRun) {
     main();
 }

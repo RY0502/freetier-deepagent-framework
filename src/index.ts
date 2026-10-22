@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { CONFIG, validateConfig } from './config.js';
 import { DatabaseClient } from './db/client.js';
 import { DeepAgentRunner, type DeepAgentRunnerOptions, type RunResult } from './agents/deepAgentRunner.js';
@@ -8,6 +10,12 @@ import { StateStore } from './state/stateStore.js';
 import { SCHEMA_SQL } from './db/schema.js';
 import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool, generateCloudflareImg2Img, type CloudflareImg2ImgParams } from './tools/cloudflareImg2ImgTool.js';
+
+import { todoListMiddleware, type AgentMiddleware } from 'langchain';
+import { FilesystemBackend, StoreBackend, type BackendProtocolV2, type AnyBackendProtocol } from 'deepagents';
+
+const TodoListMiddleware = todoListMiddleware;
+type BackendProtocol = BackendProtocolV2;
 
 /**
  * Library entry point for callers embedding this framework (e.g. a
@@ -33,8 +41,19 @@ export {
   createAudioGenTool,
   createCloudflareImg2ImgTool,
   generateCloudflareImg2Img,
+  todoListMiddleware,
+  TodoListMiddleware,
+  FilesystemBackend,
+  StoreBackend,
 };
-export type { DeepAgentRunnerOptions, RunResult, SubagentDef, CloudflareImg2ImgParams };
+export type {
+  DeepAgentRunnerOptions,
+  RunResult,
+  SubagentDef,
+  CloudflareImg2ImgParams,
+  BackendProtocol,
+  AgentMiddleware,
+};
 
 async function main() {
   const userPrompt = process.argv.slice(2).join(' ').trim();
@@ -67,7 +86,7 @@ async function main() {
 // (e.g. `npm run dev -- "..."` or `node dist/index.js`), not when it is
 // imported as a library by another package (e.g.
 // `import { DeepAgentRunner } from 'freetier-deepagent-framework'`).
-const isDirectRun = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+const isDirectRun = Boolean(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]));
 if (isDirectRun) {
   main();
 }

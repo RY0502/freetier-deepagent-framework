@@ -1,9 +1,13 @@
+import { type BackendProtocolV2 } from 'deepagents';
+import { todoListMiddleware, type AgentMiddleware } from 'langchain';
 import { DatabaseClient } from '../db/client.js';
 import { type ProviderName } from '../providers/providerManager.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { type SubagentDef } from './subagentFactory.js';
+export declare const TodoListMiddleware: typeof todoListMiddleware;
+export type BackendProtocol = BackendProtocolV2;
 /**
  * Extension points for callers embedding this framework (e.g. a
  * specialized agent wrapping `DeepAgentRunner` for its own domain).
@@ -14,6 +18,14 @@ import { type SubagentDef } from './subagentFactory.js';
 export interface DeepAgentRunnerOptions {
     extraTools?: DynamicStructuredTool[];
     extraSubagents?: SubagentDef[];
+    /**
+     * Additional middleware to attach to the deep agent.
+     * `TodoListMiddleware` is automatically prepended to preserve todo list management
+     * (since `deepagents` v0.7 no longer includes it by default).
+     */
+    extraMiddleware?: AgentMiddleware[];
+    /** Alias for extraMiddleware */
+    middleware?: AgentMiddleware[];
     /**
      * Domain-specific policy/rules appended to the framework's base
      * system prompt as a "## Domain rules" section (e.g. "never place a
@@ -46,6 +58,12 @@ export interface DeepAgentRunnerOptions {
      * calls in a video-generation pipeline) may need a higher value.
      */
     recursionLimit?: number;
+    /**
+     * Filesystem/storage backend instance (concrete `BackendProtocol` instance).
+     * Defaults to `new FilesystemBackend()`. If using `StoreBackend`, ensure
+     * an explicit `namespace` is specified (e.g. `new StoreBackend({ namespace: ['user', userId] })`).
+     */
+    backend?: BackendProtocol;
 }
 export interface RunResult {
     promptHash: string;
@@ -68,6 +86,7 @@ export declare class DeepAgentRunner {
     private readonly backend;
     private readonly extraTools;
     private readonly extraSubagents;
+    private readonly extraMiddleware;
     private readonly systemPromptExtension?;
     private readonly callbacks;
     private readonly customModel?;
@@ -81,6 +100,8 @@ export declare class DeepAgentRunner {
      *   the built-in research/vision/live-data sub-agents. Useful for
      *   giving a specialized caller its own parallelizable sub-agent
      *   without having to fork this framework.
+     * @param options.backend Concrete BackendProtocol instance (defaults to new FilesystemBackend()).
+     * @param options.extraMiddleware Additional middleware appended after TodoListMiddleware.
      */
     constructor(db: DatabaseClient, options?: DeepAgentRunnerOptions);
     run(userPrompt: string): Promise<RunResult>;

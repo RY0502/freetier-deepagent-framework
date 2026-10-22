@@ -145,6 +145,14 @@ console.log(result.finalText);
 - `callbacks?: BaseCallbackHandler[]` — standard LangChain callback handlers attached
   to every agent run, for per-tool/per-LLM-call observability (latency, token usage,
   cost) independent of the coarse `agent_events` provider-switch audit log.
+- `extraMiddleware?: AgentMiddleware[]` (or `middleware?: AgentMiddleware[]`) — custom
+  middleware attached to the underlying `createDeepAgent` invocation. Note that `TodoListMiddleware`
+  from `langchain` is always prepended automatically so the `write_todos` tool, the `todos`
+  state channel, and the todo-planning prompt remain active and durable across provider swaps.
+- `backend?: BackendProtocol` — concrete filesystem/storage backend instance (defaults to
+  `new FilesystemBackend()`). For `StoreBackend`, pass a concrete instance with an explicit
+  `namespace` (e.g. `new StoreBackend({ namespace: ['user', userId] })`). Backend factory
+  functions are no longer used.
 
 All other behavior (provider rotation, Neon-backed durable resume, todo tracking) is
 unchanged — the wrapping agent gets that for free and only needs to supply its own

@@ -5,6 +5,8 @@ import { FreeTierChatModel } from '../providers/freeTierChatModel.js';
 import { createTavilySearchTool, createTavilyCrawlTool } from '../tools/tavilyTools.js';
 import { createVisionScrapeTool, createPageAnalysisTool } from '../tools/visionScrapeTool.js';
 
+import type { AgentMiddleware } from 'langchain';
+
 /** Minimal shape `deepagents`' subagent config expects. */
 export interface SubagentDef {
   name: string;
@@ -12,6 +14,7 @@ export interface SubagentDef {
   systemPrompt: string;
   tools: DynamicStructuredTool[];
   model: LanguageModelLike;
+  middleware?: AgentMiddleware[];
 }
 
 /**
