@@ -44,6 +44,8 @@ resume a task exactly where the previous one left off.
 ## Tools
 
 - `tavily_search` / `tavily_crawl` — internet search and page extraction (Tavily API).
+  Supports automatic key rotation across configured API keys (via comma-separated `TAVILY_API_KEY` or `TAVILY_API_KEY_1..N`)
+  on HTTP 429, rate limits, quota exhaustion, or limit reached, failing only once all configured keys are exhausted.
   Tavily's index can return **cached/stale** snapshots, so these are best for
   content that does not change minute-to-minute (blogs, articles, tutorials,
   documentation, past events/history) — not for live facts.
@@ -165,7 +167,7 @@ See `.env.example`. Key variables:
 - `NVIDIA_API_KEY`, `OPENROUTER_API_KEY`, `HUGGINGFACE_API_KEY` — one key per provider;
   rotation order is fixed NVIDIA -> OpenRouter -> HuggingFace.
 - `NVIDIA_DEEP_AGENT_MODEL` / `HUGGINGFACE_DEEP_AGENT_MODEL` / `OPENROUTER_DEEP_AGENT_MODEL` — GLM model id per provider.
-- `TAVILY_API_KEY`, `NEON_DATABASE_URL` — reused from the existing deep-agent repo.
+- `TAVILY_API_KEY` (or `TAVILY_API_KEY_1`, `TAVILY_API_KEY_2`, etc., or comma-separated keys), `NEON_DATABASE_URL` — reused from the existing deep-agent repo.
 - `SCRAPE_AGENT_URL` — defaults to `https://scrape-agent.onrender.com`.
 - `MAX_PARALLEL_SUBAGENTS` — sub-agent concurrency (currently informational; enforce
   in your own orchestration code if you fan out sub-agent calls manually).

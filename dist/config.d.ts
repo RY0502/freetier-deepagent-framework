@@ -26,6 +26,11 @@ export declare const CONFIG: {
     OPENROUTER_BASE_URL: string;
     HUGGINGFACE_BASE_URL: string;
     TAVILY_API_KEY: string;
+    TAVILY_API_KEY_1: string;
+    TAVILY_API_KEY_2: string;
+    TAVILY_API_KEY_3: string;
+    TAVILY_API_KEY_4: string;
+    TAVILY_API_KEY_5: string;
     NEON_DATABASE_URL: string;
     SCRAPE_AGENT_URL: string;
     CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1: string;

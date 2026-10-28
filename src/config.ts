@@ -30,6 +30,11 @@ export const CONFIG = {
   HUGGINGFACE_BASE_URL: process.env.HUGGINGFACE_BASE_URL ?? 'https://router.huggingface.co/v1',
 
   TAVILY_API_KEY: process.env.TAVILY_API_KEY ?? '',
+  TAVILY_API_KEY_1: process.env.TAVILY_API_KEY_1 ?? '',
+  TAVILY_API_KEY_2: process.env.TAVILY_API_KEY_2 ?? '',
+  TAVILY_API_KEY_3: process.env.TAVILY_API_KEY_3 ?? '',
+  TAVILY_API_KEY_4: process.env.TAVILY_API_KEY_4 ?? '',
+  TAVILY_API_KEY_5: process.env.TAVILY_API_KEY_5 ?? '',
   NEON_DATABASE_URL: process.env.NEON_DATABASE_URL ?? '',
   SCRAPE_AGENT_URL: process.env.SCRAPE_AGENT_URL ?? 'https://scrape-agent.onrender.com',
 
@@ -56,7 +61,7 @@ export function validateConfig(): void {
     ['NVIDIA_DEEP_AGENT_API_KEY_1', CONFIG.NVIDIA_DEEP_AGENT_API_KEY_1],
     ['OPENROUTER_API_KEY', CONFIG.OPENROUTER_API_KEY],
     ['HUGGINGFACE_API_KEY', CONFIG.HUGGINGFACE_API_KEY],
-    ['TAVILY_API_KEY', CONFIG.TAVILY_API_KEY],
+    ['TAVILY_API_KEY', CONFIG.TAVILY_API_KEY || CONFIG.TAVILY_API_KEY_1],
     ['NEON_DATABASE_URL', CONFIG.NEON_DATABASE_URL],
   ];
 
