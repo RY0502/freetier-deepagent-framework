@@ -54,12 +54,12 @@ function providerDefs(nvidiaKeyIndex, anyApiKeyIndex) {
  * id is sufficient — no bespoke per-provider SDK is required. This model
  * is passed directly to `createDeepAgent({ model })`.
  */
-export function buildProviderModel(provider, nvidiaKeyIndex = 0, anyApiKeyIndex = 0) {
+export function buildProviderModel(provider, nvidiaKeyIndex = 0, anyApiKeyIndex = 0, temperature) {
     const def = providerDefs(nvidiaKeyIndex, anyApiKeyIndex)[provider];
     return new ChatOpenAI({
         apiKey: def.apiKey,
         model: def.model,
-        temperature: 0.7,
+        temperature: temperature ?? 0.7,
         configuration: {
             baseURL: def.baseURL,
         },
@@ -75,12 +75,14 @@ export class ProviderManager {
     currentIndex;
     nvidiaKeyIndex;
     anyApiKeyIndex;
-    constructor(startProvider, startNvidiaKeyIndex = 0, startAnyApiKeyIndex = 0) {
+    temperature;
+    constructor(startProvider, startNvidiaKeyIndex = 0, startAnyApiKeyIndex = 0, temperature) {
         this.currentIndex = startProvider ? PROVIDER_ORDER.indexOf(startProvider) : 0;
         if (this.currentIndex === -1)
             this.currentIndex = 0;
         this.nvidiaKeyIndex = startNvidiaKeyIndex;
         this.anyApiKeyIndex = startAnyApiKeyIndex;
+        this.temperature = temperature;
     }
     get current() {
         return PROVIDER_ORDER[this.currentIndex];
@@ -94,7 +96,7 @@ export class ProviderManager {
         return this.anyApiKeyIndex;
     }
     getModel() {
-        return buildProviderModel(this.current, this.nvidiaKeyIndex, this.anyApiKeyIndex);
+        return buildProviderModel(this.current, this.nvidiaKeyIndex, this.anyApiKeyIndex, this.temperature);
     }
     /**
      * Advances to the next NVIDIA key, next AnyApi key, or next provider.

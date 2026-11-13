@@ -5,6 +5,7 @@ import { type ProviderName } from '../providers/providerManager.js';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+import { FreeTierOrchestrator, type ChatEmbeddingInput, type ChatEmbeddingOutput, type ChatDecisionInput, type ChatDecisionOutput } from '@freetier/orchestrator';
 import { type SubagentDef } from './subagentFactory.js';
 export declare const TodoListMiddleware: typeof todoListMiddleware;
 export type BackendProtocol = BackendProtocolV2;
@@ -64,6 +65,11 @@ export interface DeepAgentRunnerOptions {
      * an explicit `namespace` is specified (e.g. `new StoreBackend({ namespace: ['user', userId] })`).
      */
     backend?: BackendProtocol;
+    /**
+     * Sampling temperature to control randomness / creativity in LLM text calls.
+     * Passed to provider models and subagents. Defaults to 0.7 if unspecified.
+     */
+    temperature?: number;
 }
 export interface RunResult {
     promptHash: string;
@@ -91,6 +97,7 @@ export declare class DeepAgentRunner {
     private readonly callbacks;
     private readonly customModel?;
     private readonly recursionLimit;
+    private readonly temperature?;
     /**
      * @param options.extraTools Additional tools merged with the
      *   framework's built-in tools (tavily_search/crawl, vision_scrape,
@@ -102,9 +109,12 @@ export declare class DeepAgentRunner {
      *   without having to fork this framework.
      * @param options.backend Concrete BackendProtocol instance (defaults to new FilesystemBackend()).
      * @param options.extraMiddleware Additional middleware appended after TodoListMiddleware.
+     * @param options.temperature Optional sampling temperature for LLM text calls.
      */
     constructor(db: DatabaseClient, options?: DeepAgentRunnerOptions);
-    run(userPrompt: string): Promise<RunResult>;
+    run(userPrompt: string, options?: {
+        temperature?: number;
+    }): Promise<RunResult>;
     /**
      * Run using the caller-supplied custom model. No provider rotation:
      * errors propagate directly to the caller.
@@ -126,4 +136,42 @@ export declare class DeepAgentRunner {
     private executeWithModel;
     /** Normalizes the varying shapes a LangGraph stream chunk can take. */
     private extractState;
+    /**
+     * Directly call the free-tier embedding orchestrator (NVIDIA / Cloudflare)
+     * with automatic key rotation and optional text splitting.
+     */
+    chatEmbedding(input: ChatEmbeddingInput, options?: {
+        orchestrator?: FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput>;
+    }): Promise<ChatEmbeddingOutput>;
+    /**
+     * Directly call the free-tier decision orchestrator (Cloudflare clef-flash)
+     * with automatic key rotation for decision making, classification, or routing.
+     */
+    chatDecision(input: ChatDecisionInput, options?: {
+        orchestrator?: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput>;
+    }): Promise<ChatDecisionOutput>;
+    /** Alias for chatDecision. */
+    chatClassification(input: ChatDecisionInput, options?: {
+        orchestrator?: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput>;
+    }): Promise<ChatDecisionOutput>;
 }
+export declare function getEmbeddingOrchestrator(): FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput>;
+/**
+ * Direct call to generate embeddings via free-tier orchestrator (NVIDIA / Cloudflare)
+ * with automatic key rotation and optional text splitting.
+ */
+export declare function callChatEmbedding(input: ChatEmbeddingInput, options?: {
+    orchestrator?: FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput>;
+}): Promise<ChatEmbeddingOutput>;
+export declare const chatEmbedding: typeof callChatEmbedding;
+export declare function getDecisionOrchestrator(): FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput>;
+/**
+ * Direct call to evaluate decisions or classify text via Cloudflare clef-flash
+ * with automatic key rotation.
+ */
+export declare function callChatDecision(input: ChatDecisionInput, options?: {
+    orchestrator?: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput>;
+}): Promise<ChatDecisionOutput>;
+export declare const chatDecision: typeof callChatDecision;
+export declare const callChatClassification: typeof callChatDecision;
+export declare const chatClassification: typeof callChatDecision;

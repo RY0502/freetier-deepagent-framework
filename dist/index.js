@@ -2,13 +2,15 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { CONFIG, validateConfig } from './config.js';
 import { DatabaseClient } from './db/client.js';
-import { DeepAgentRunner } from './agents/deepAgentRunner.js';
-import { buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent } from './agents/subagentFactory.js';
+import { DeepAgentRunner, callChatEmbedding, chatEmbedding, callChatDecision, chatDecision, callChatClassification, chatClassification, getEmbeddingOrchestrator, getDecisionOrchestrator, } from './agents/deepAgentRunner.js';
+import { buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, } from './agents/subagentFactory.js';
 import { CustomStateStore } from './state/customStateStore.js';
 import { hashUserPrompt } from './state/promptHash.js';
 import { StateStore } from './state/stateStore.js';
 import { SCHEMA_SQL } from './db/schema.js';
-import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
+import { createImageGenTool, createAudioGenTool, createChatEmbeddingTool, createChatDecisionTool, createChatClassificationTool, createEmbeddingProviders, createDecisionProviders, createClassificationProviders, createTextProviders, createVisionProviders, createProviders, FreeTierOrchestrator, FreeTierEmbeddings, NvidiaEmbeddings, CloudflareEmbeddings, } from '@freetier/orchestrator';
+import { FreeTierChatModel, callTextLlm, getTextOrchestrator, } from './providers/freeTierChatModel.js';
+import { buildProviderModel, ProviderManager, PROVIDER_ORDER, } from './providers/providerManager.js';
 import { createCloudflareImg2ImgTool, generateCloudflareImg2Img } from './tools/cloudflareImg2ImgTool.js';
 import { todoListMiddleware } from 'langchain';
 import { FilesystemBackend, StoreBackend } from 'deepagents';
@@ -20,7 +22,7 @@ const TodoListMiddleware = todoListMiddleware;
  * consumers only need to `import { DeepAgentRunner, ... } from
  * 'freetier-deepagent-framework'` rather than reaching into `src/`.
  */
-export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createImageGenTool, createAudioGenTool, createCloudflareImg2ImgTool, generateCloudflareImg2Img, todoListMiddleware, TodoListMiddleware, FilesystemBackend, StoreBackend, };
+export { DatabaseClient, DeepAgentRunner, buildDefaultSubagents, buildResearchSubagent, buildVisionSubagent, buildLiveDataSubagent, validateConfig, CONFIG, CustomStateStore, hashUserPrompt, StateStore, SCHEMA_SQL, createImageGenTool, createAudioGenTool, createChatEmbeddingTool, createChatDecisionTool, createChatClassificationTool, callChatEmbedding, chatEmbedding, callChatDecision, chatDecision, callChatClassification, chatClassification, getEmbeddingOrchestrator, getDecisionOrchestrator, createEmbeddingProviders, createDecisionProviders, createClassificationProviders, createTextProviders, createVisionProviders, createProviders, FreeTierOrchestrator, FreeTierEmbeddings, NvidiaEmbeddings, CloudflareEmbeddings, FreeTierChatModel, callTextLlm, getTextOrchestrator, buildProviderModel, ProviderManager, PROVIDER_ORDER, createCloudflareImg2ImgTool, generateCloudflareImg2Img, todoListMiddleware, TodoListMiddleware, FilesystemBackend, StoreBackend, };
 async function main() {
     const userPrompt = process.argv.slice(2).join(' ').trim();
     if (!userPrompt) {

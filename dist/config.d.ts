@@ -13,6 +13,7 @@ export declare const CONFIG: {
     NVIDIA_DEEP_AGENT_API_KEY_2: string;
     NVIDIA_DEEP_AGENT_API_KEY_3: string;
     NVIDIA_DEEP_AGENT_API_KEY_4: string;
+    NVIDIA_API_KEY: string;
     OPENROUTER_API_KEY: string;
     HUGGINGFACE_API_KEY: string;
     ANYAPI_DEEP_AGENT_MODEL: string;
@@ -39,6 +40,11 @@ export declare const CONFIG: {
     CLOUDFLARE_IMG2IMG_API_TOKEN_2: string;
     CLOUDFLARE_IMG2IMG_ACCOUNT_ID_3: string;
     CLOUDFLARE_IMG2IMG_API_TOKEN_3: string;
+    CLOUDFLARE_API_TOKEN: string;
+    CLOUDFLARE_ACCOUNT_ID: string;
+    NVIDIA_EMBEDDING_MODEL: string;
+    CLOUDFLARE_EMBEDDING_MODEL: string;
+    CLOUDFLARE_DECISION_MODEL: string;
     MAX_PARALLEL_SUBAGENTS: number;
     PROVIDER_RETRY_MAX: number;
     PROVIDER_RETRY_DELAY_MS: number;

@@ -10,7 +10,20 @@ import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
 import { createTavilySearchTool, createTavilyCrawlTool } from '../tools/tavilyTools.js';
 import { createVisionScrapeTool, createPageAnalysisTool } from '../tools/visionScrapeTool.js';
-import { createImageGenTool, createAudioGenTool } from '@freetier/orchestrator';
+import {
+  createImageGenTool,
+  createAudioGenTool,
+  createChatEmbeddingTool,
+  createChatDecisionTool,
+  createChatClassificationTool,
+  createEmbeddingProviders,
+  createDecisionProviders,
+  FreeTierOrchestrator,
+  type ChatEmbeddingInput,
+  type ChatEmbeddingOutput,
+  type ChatDecisionInput,
+  type ChatDecisionOutput,
+} from '@freetier/orchestrator';
 import { createCloudflareImg2ImgTool } from '../tools/cloudflareImg2ImgTool.js';
 import { buildDefaultSubagents, type SubagentDef } from './subagentFactory.js';
 import { LoggingCallbackHandler } from '../callbacks/loggingCallbackHandler.js';
@@ -75,6 +88,11 @@ export interface DeepAgentRunnerOptions {
    * an explicit `namespace` is specified (e.g. `new StoreBackend({ namespace: ['user', userId] })`).
    */
   backend?: BackendProtocol;
+  /**
+   * Sampling temperature to control randomness / creativity in LLM text calls.
+   * Passed to provider models and subagents. Defaults to 0.7 if unspecified.
+   */
+  temperature?: number;
 }
 
 const logger = {
@@ -99,6 +117,8 @@ ${resumeNote}
 - analyze_page_components: describe a page/screenshot's UI/layout/components (design-review style questions) — NOT for extracting data values, use vision_scrape for that.
 - generate_image: generate a brand-new image from a text prompt via the @freetier/orchestrator Pollinations provider. Provide a model and output path.
 - generate_audio: generate speech audio from text via the @freetier/orchestrator Groq TTS provider. Provide input text and output path.
+- chat_embedding: generate vector embeddings for text or documents using NVIDIA and Cloudflare free-tier models with key rotation. Supports query vs passage input types and LangChain text splitting (chunkSize, chunkOverlap).
+- chat_decision: evaluate decisions, classify text, or determine routing/intent for user messages/state using Cloudflare Workers AI clef-flash decision model with key rotation.
 - generate_image_cloudflare_img2img: transform/edit an EXISTING reference image (base64) via Cloudflare Workers AI Stable Diffusion img2img, guided by a text prompt — use this when you need to preserve the visual identity of a reference image while changing its pose/scene/background.
 - Delegate independent, parallelizable sub-tasks to sub-agents instead of doing everything yourself:
   - research-subagent: non-time-sensitive research (blogs, articles, tutorials, history).
@@ -142,6 +162,7 @@ export class DeepAgentRunner {
   private readonly callbacks: BaseCallbackHandler[];
   private readonly customModel?: BaseLanguageModel;
   private readonly recursionLimit: number;
+  private readonly temperature?: number;
 
   /**
    * @param options.extraTools Additional tools merged with the
@@ -154,6 +175,7 @@ export class DeepAgentRunner {
    *   without having to fork this framework.
    * @param options.backend Concrete BackendProtocol instance (defaults to new FilesystemBackend()).
    * @param options.extraMiddleware Additional middleware appended after TodoListMiddleware.
+   * @param options.temperature Optional sampling temperature for LLM text calls.
    */
   constructor(db: DatabaseClient, options: DeepAgentRunnerOptions = {}) {
     this.stateStore = new StateStore(db);
@@ -166,15 +188,17 @@ export class DeepAgentRunner {
     this.callbacks = [new LoggingCallbackHandler(), ...(options.callbacks ?? [])];
     this.customModel = options.model;
     this.recursionLimit = options.recursionLimit ?? 100;
+    this.temperature = options.temperature;
   }
 
-  async run(userPrompt: string): Promise<RunResult> {
+  async run(userPrompt: string, options?: { temperature?: number }): Promise<RunResult> {
+    const effectiveTemp = options?.temperature ?? this.temperature;
     // When a custom model is supplied, skip the built-in provider
     // rotation entirely — the caller manages their own model.
     if (this.customModel) {
       return this.runWithCustomModel(userPrompt);
     }
-    return this.runWithProviderRotation(userPrompt);
+    return this.runWithProviderRotation(userPrompt, effectiveTemp);
   }
 
   /**
@@ -212,10 +236,10 @@ export class DeepAgentRunner {
    * to the next key/provider and rebuilds the deep agent with the same
    * thread/checkpointer/backend.
    */
-  private async runWithProviderRotation(userPrompt: string): Promise<RunResult> {
+  private async runWithProviderRotation(userPrompt: string, temperature?: number): Promise<RunResult> {
     const initialProvider: ProviderName = 'nvidia';
     const runState = await this.stateStore.loadOrCreate(userPrompt, initialProvider);
-    const providerManager = new ProviderManager(runState.currentProvider as ProviderName);
+    const providerManager = new ProviderManager(runState.currentProvider as ProviderName, 0, 0, temperature);
 
     logger.info(runState.isNew ? 'Starting new task' : 'Resuming existing task', {
       promptHash: runState.promptHash,
@@ -293,12 +317,14 @@ export class DeepAgentRunner {
         createTavilyCrawlTool(),
         createVisionScrapeTool(),
         createPageAnalysisTool(),
-        createImageGenTool(),
-        createAudioGenTool(),
+        createImageGenTool() as any,
+        createAudioGenTool() as any,
+        createChatEmbeddingTool() as any,
+        createChatDecisionTool() as any,
         createCloudflareImg2ImgTool(),
         ...this.extraTools,
       ],
-      subagents: [...buildDefaultSubagents(this.callbacks), ...this.extraSubagents],
+      subagents: [...buildDefaultSubagents(this.callbacks, { temperature: this.temperature }), ...this.extraSubagents],
       middleware: [TodoListMiddleware(), ...this.extraMiddleware],
       backend: this.backend,
       checkpointer: this.checkpointer,
@@ -362,4 +388,82 @@ export class DeepAgentRunner {
     }
     return null;
   }
+
+  /**
+   * Directly call the free-tier embedding orchestrator (NVIDIA / Cloudflare)
+   * with automatic key rotation and optional text splitting.
+   */
+  async chatEmbedding(
+    input: ChatEmbeddingInput,
+    options?: { orchestrator?: FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput> }
+  ): Promise<ChatEmbeddingOutput> {
+    return callChatEmbedding(input, options);
+  }
+
+  /**
+   * Directly call the free-tier decision orchestrator (Cloudflare clef-flash)
+   * with automatic key rotation for decision making, classification, or routing.
+   */
+  async chatDecision(
+    input: ChatDecisionInput,
+    options?: { orchestrator?: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput> }
+  ): Promise<ChatDecisionOutput> {
+    return callChatDecision(input, options);
+  }
+
+  /** Alias for chatDecision. */
+  async chatClassification(
+    input: ChatDecisionInput,
+    options?: { orchestrator?: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput> }
+  ): Promise<ChatDecisionOutput> {
+    return this.chatDecision(input, options);
+  }
 }
+
+let defaultEmbeddingOrchestrator: FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput> | null = null;
+
+export function getEmbeddingOrchestrator(): FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput> {
+  if (!defaultEmbeddingOrchestrator) {
+    defaultEmbeddingOrchestrator = new FreeTierOrchestrator(createEmbeddingProviders());
+  }
+  return defaultEmbeddingOrchestrator;
+}
+
+/**
+ * Direct call to generate embeddings via free-tier orchestrator (NVIDIA / Cloudflare)
+ * with automatic key rotation and optional text splitting.
+ */
+export async function callChatEmbedding(
+  input: ChatEmbeddingInput,
+  options?: { orchestrator?: FreeTierOrchestrator<ChatEmbeddingInput, ChatEmbeddingOutput> }
+): Promise<ChatEmbeddingOutput> {
+  const orchestrator = options?.orchestrator ?? getEmbeddingOrchestrator();
+  return orchestrator.invoke(input);
+}
+
+export const chatEmbedding = callChatEmbedding;
+
+let defaultDecisionOrchestrator: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput> | null = null;
+
+export function getDecisionOrchestrator(): FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput> {
+  if (!defaultDecisionOrchestrator) {
+    defaultDecisionOrchestrator = new FreeTierOrchestrator(createDecisionProviders());
+  }
+  return defaultDecisionOrchestrator;
+}
+
+/**
+ * Direct call to evaluate decisions or classify text via Cloudflare clef-flash
+ * with automatic key rotation.
+ */
+export async function callChatDecision(
+  input: ChatDecisionInput,
+  options?: { orchestrator?: FreeTierOrchestrator<ChatDecisionInput, ChatDecisionOutput> }
+): Promise<ChatDecisionOutput> {
+  const orchestrator = options?.orchestrator ?? getDecisionOrchestrator();
+  return orchestrator.invoke(input);
+}
+
+export const chatDecision = callChatDecision;
+export const callChatClassification = callChatDecision;
+export const chatClassification = callChatDecision;

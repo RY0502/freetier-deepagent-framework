@@ -65,21 +65,32 @@ export function runProviderSwapChecks(): CheckResult[] {
   {
     const anyApiKeys = [CONFIG.ANYAPI_AGENT_KEY_1, CONFIG.ANYAPI_AGENT_KEY_2, CONFIG.ANYAPI_AGENT_KEY_3, CONFIG.ANYAPI_AGENT_KEY_4].filter(Boolean);
     const pm = new ProviderManager('anyapi', 0, 0);
-    const seen: string[] = [`${pm.current}[key=${pm.currentAnyApiKeyIndex}]`];
-    for (let i = 1; i < anyApiKeys.length; i++) {
-      const next = pm.switchToNext();
-      if (!next) break;
-      seen.push(`${next}[key=${pm.current === 'anyapi' ? pm.currentAnyApiKeyIndex : 0}]`);
+    if (anyApiKeys.length === 0) {
+      const pass = pm.switchToNext() === 'requesty';
+      results.push({
+        id: 'anyapi-multi-key-rotation',
+        pass,
+        detail: pass
+          ? 'AnyApi (no extra keys configured) advanced to Requesty as expected.'
+          : 'Expected AnyApi with no keys to advance to requesty.',
+      });
+    } else {
+      const seen: string[] = [`${pm.current}[key=${pm.currentAnyApiKeyIndex}]`];
+      for (let i = 1; i < anyApiKeys.length; i++) {
+        const next = pm.switchToNext();
+        if (!next) break;
+        seen.push(`${next}[key=${pm.current === 'anyapi' ? pm.currentAnyApiKeyIndex : 0}]`);
+      }
+      const expected = anyApiKeys.map((_, index) => `anyapi[key=${index}]`);
+      const pass = JSON.stringify(seen) === JSON.stringify(expected) && pm.switchToNext() === 'requesty';
+      results.push({
+        id: 'anyapi-multi-key-rotation',
+        pass,
+        detail: pass
+          ? 'AnyApi rotated through all configured keys before moving to Requesty.'
+          : `Expected ${expected.join(' -> ')} then requesty, got ${seen.join(' -> ')}`,
+      });
     }
-    const expected = anyApiKeys.map((_, index) => `anyapi[key=${index}]`);
-    const pass = anyApiKeys.length > 0 && JSON.stringify(seen) === JSON.stringify(expected) && pm.switchToNext() === 'requesty';
-    results.push({
-      id: 'anyapi-multi-key-rotation',
-      pass,
-      detail: pass
-        ? 'AnyApi rotated through all configured keys before moving to Requesty.'
-        : `Expected ${expected.join(' -> ')} then requesty, got ${seen.join(' -> ')}`,
-    });
   }
 
   // 2. Starting mid-list (simulating a resumed run) picks up from the persisted provider.

@@ -11,6 +11,11 @@ export interface SubagentDef {
     model: LanguageModelLike;
     middleware?: AgentMiddleware[];
 }
+export interface SubagentOptions {
+    callbacks?: BaseCallbackHandler[];
+    /** Sampling temperature to control randomness / creativity in sub-agent LLM calls. */
+    temperature?: number;
+}
 /**
  * Sub-agent definitions for `deepagents`' subagent config, used for
  * parallel task decomposition. Each sub-agent gets its own
@@ -33,12 +38,16 @@ export interface SubagentDef {
  * this for time-sensitive facts (live scores, prices, weather, AQI);
  * see `buildLiveDataSubagent` for that.
  */
-export declare function buildResearchSubagent(callbacks?: BaseCallbackHandler[]): SubagentDef;
+export declare function buildResearchSubagent(callbacksOrOptions?: BaseCallbackHandler[] | SubagentOptions, options?: {
+    temperature?: number;
+}): SubagentDef;
 /**
  * For UI/screenshot analysis and for data extraction off rendered
  * pages (JS-heavy pages, dashboards, charts).
  */
-export declare function buildVisionSubagent(callbacks?: BaseCallbackHandler[]): SubagentDef;
+export declare function buildVisionSubagent(callbacksOrOptions?: BaseCallbackHandler[] | SubagentOptions, options?: {
+    temperature?: number;
+}): SubagentDef;
 /**
  * For fast-changing real-time facts (live scores, stock prices,
  * current weather, AQI, etc.) where Tavily's cached index may be
@@ -49,11 +58,15 @@ export declare function buildVisionSubagent(callbacks?: BaseCallbackHandler[]): 
  * unambiguous choice between "stale-tolerant research" and
  * "real-time lookup" instead of one sub-agent trying to do both.
  */
-export declare function buildLiveDataSubagent(callbacks?: BaseCallbackHandler[]): SubagentDef;
+export declare function buildLiveDataSubagent(callbacksOrOptions?: BaseCallbackHandler[] | SubagentOptions, options?: {
+    temperature?: number;
+}): SubagentDef;
 /**
  * Default first-class sub-agents. Callers embedding this framework can
  * merge their own additional `SubagentDef`s with these (see
  * `DeepAgentRunner`'s `extraSubagents` option) rather than being
  * limited to only what's built in here.
  */
-export declare function buildDefaultSubagents(callbacks?: BaseCallbackHandler[]): SubagentDef[];
+export declare function buildDefaultSubagents(callbacksOrOptions?: BaseCallbackHandler[] | SubagentOptions, options?: {
+    temperature?: number;
+}): SubagentDef[];

@@ -58,6 +58,10 @@ resume a task exactly where the previous one left off.
   describing a page/screenshot's UI/layout/components (design-review style
   questions), kept distinct from `vision_scrape` so the agent doesn't conflate
   "extract this data" with "describe this UI".
+- `chat_embedding` — generates vector embeddings for text or documents using NVIDIA and Cloudflare free-tier models with key rotation, supporting query vs passage input types and LangChain text splitting (`chunkSize`, `chunkOverlap`).
+- `chat_decision` — evaluates decisions, classifies text, or determines routing/intent for user messages/state using Cloudflare Workers AI `clef-flash` decision model with key rotation.
+- `generate_image` / `generate_audio` — text-to-image (Pollinations) and text-to-speech (Groq TTS) via `@freetier/orchestrator`.
+- `generate_image_cloudflare_img2img` — image-to-image conditioning via Cloudflare Workers AI SD 1.5.
 - Deep agent built-ins (filesystem read/write, PDF generation, etc.) via
   `deepagents`' `FilesystemBackend` — used whenever the task needs to produce files.
 
@@ -155,6 +159,48 @@ console.log(result.finalText);
   `new FilesystemBackend()`). For `StoreBackend`, pass a concrete instance with an explicit
   `namespace` (e.g. `new StoreBackend({ namespace: ['user', userId] })`). Backend factory
   functions are no longer used.
+- `temperature?: number` — sampling temperature for LLM text calls (defaults to 0.7). Can also be overridden per call: `runner.run(prompt, { temperature: 0.2 })`.
+
+### Direct programmatic features (embeddings, decisions, text LLM)
+
+Callers can invoke the new `@freetier/orchestrator` capabilities either via the `DeepAgentRunner` instance or through direct helper functions exported by the package:
+
+```ts
+import {
+  DeepAgentRunner,
+  callChatEmbedding,
+  callChatDecision,
+  callTextLlm,
+  FreeTierEmbeddings,
+} from 'freetier-deepagent-framework';
+
+// 1. Temperature control in text LLM calls
+const text = await callTextLlm({
+  prompt: 'Write a creative product tagline',
+  temperature: 0.9,
+});
+
+// Or instantiate the runner with a specific temperature:
+const runner = new DeepAgentRunner(db, { temperature: 0.2 });
+
+// Or override temperature on a specific run:
+await runner.run('Analyze quarterly financials', { temperature: 0.1 });
+
+// 2. ChatEmbedding (NVIDIA / Cloudflare free-tier models with rotation)
+const embeddingResult = await runner.chatEmbedding({
+  text: 'Search query to embed',
+  inputType: 'query', // or 'passage'
+  split: { chunkSize: 1000, chunkOverlap: 200 }, // optional LangChain chunking
+});
+console.log(embeddingResult.embeddings, embeddingResult.dimensions);
+
+// 3. ChatDecision (Cloudflare Workers AI clef-flash decision/classification)
+const decisionResult = await runner.chatDecision({
+  text: 'My credit card was charged twice for the subscription',
+  categories: ['billing', 'technical_support', 'general_inquiry'],
+});
+console.log(decisionResult.decision); // 'billing'
+```
 
 All other behavior (provider rotation, Neon-backed durable resume, todo tracking) is
 unchanged — the wrapping agent gets that for free and only needs to supply its own

@@ -1,5 +1,19 @@
 import 'dotenv/config';
 
+// Ensure cross-compatibility between deep-agent env vars and @freetier/orchestrator env vars
+if (!process.env.NVIDIA_API_KEY && process.env.NVIDIA_DEEP_AGENT_API_KEY_1) {
+  process.env.NVIDIA_API_KEY = process.env.NVIDIA_DEEP_AGENT_API_KEY_1;
+}
+if (!process.env.NVIDIA_DEEP_AGENT_API_KEY_1 && process.env.NVIDIA_API_KEY) {
+  process.env.NVIDIA_DEEP_AGENT_API_KEY_1 = process.env.NVIDIA_API_KEY;
+}
+if (!process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_1) {
+  process.env.CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_1;
+}
+if (!process.env.CLOUDFLARE_ACCOUNT_ID && process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1) {
+  process.env.CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1;
+}
+
 /**
  * Centralized, validated runtime configuration.
  * Fails fast on startup if required env vars are missing.
@@ -10,10 +24,11 @@ export const CONFIG = {
   ANYAPI_AGENT_KEY_3: process.env.ANYAPI_AGENT_KEY_3 ?? '',
   ANYAPI_AGENT_KEY_4: process.env.ANYAPI_AGENT_KEY_4 ?? '',
   REQUESTY_API_KEY: process.env.REQUESTY_API_KEY ?? '',
-  NVIDIA_DEEP_AGENT_API_KEY_1: process.env.NVIDIA_DEEP_AGENT_API_KEY_1 ?? '',
-  NVIDIA_DEEP_AGENT_API_KEY_2: process.env.NVIDIA_DEEP_AGENT_API_KEY_2 ?? '',
-  NVIDIA_DEEP_AGENT_API_KEY_3: process.env.NVIDIA_DEEP_AGENT_API_KEY_3 ?? '',
-  NVIDIA_DEEP_AGENT_API_KEY_4: process.env.NVIDIA_DEEP_AGENT_API_KEY_4 ?? '',
+  NVIDIA_DEEP_AGENT_API_KEY_1: process.env.NVIDIA_DEEP_AGENT_API_KEY_1 ?? process.env.NVIDIA_API_KEY ?? '',
+  NVIDIA_DEEP_AGENT_API_KEY_2: process.env.NVIDIA_DEEP_AGENT_API_KEY_2 ?? process.env.NVIDIA_API_KEY_1 ?? '',
+  NVIDIA_DEEP_AGENT_API_KEY_3: process.env.NVIDIA_DEEP_AGENT_API_KEY_3 ?? process.env.NVIDIA_API_KEY_2 ?? '',
+  NVIDIA_DEEP_AGENT_API_KEY_4: process.env.NVIDIA_DEEP_AGENT_API_KEY_4 ?? process.env.NVIDIA_API_KEY_3 ?? '',
+  NVIDIA_API_KEY: process.env.NVIDIA_API_KEY ?? process.env.NVIDIA_DEEP_AGENT_API_KEY_1 ?? '',
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY ?? '',
   HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY ?? '',
 
@@ -40,12 +55,19 @@ export const CONFIG = {
 
   // Cloudflare Workers AI img2img tool (built-in `generate_image_cloudflare_img2img`
   // tool). Each rotating credential has its own account id and API token.
-  CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1 ?? '',
-  CLOUDFLARE_IMG2IMG_API_TOKEN_1: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_1 ?? '',
-  CLOUDFLARE_IMG2IMG_ACCOUNT_ID_2: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_2 ?? '',
-  CLOUDFLARE_IMG2IMG_API_TOKEN_2: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_2 ?? '',
-  CLOUDFLARE_IMG2IMG_ACCOUNT_ID_3: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_3 ?? '',
-  CLOUDFLARE_IMG2IMG_API_TOKEN_3: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_3 ?? '',
+  CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1 ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
+  CLOUDFLARE_IMG2IMG_API_TOKEN_1: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_1 ?? process.env.CLOUDFLARE_API_TOKEN ?? '',
+  CLOUDFLARE_IMG2IMG_ACCOUNT_ID_2: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_2 ?? process.env.CLOUDFLARE_ACCOUNT_ID_1 ?? '',
+  CLOUDFLARE_IMG2IMG_API_TOKEN_2: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_2 ?? process.env.CLOUDFLARE_API_TOKEN_1 ?? '',
+  CLOUDFLARE_IMG2IMG_ACCOUNT_ID_3: process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_3 ?? process.env.CLOUDFLARE_ACCOUNT_ID_2 ?? '',
+  CLOUDFLARE_IMG2IMG_API_TOKEN_3: process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_3 ?? process.env.CLOUDFLARE_API_TOKEN_2 ?? '',
+
+  // Cloudflare credentials for @freetier/orchestrator (embedding / decision)
+  CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN ?? process.env.CLOUDFLARE_IMG2IMG_API_TOKEN_1 ?? '',
+  CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? process.env.CLOUDFLARE_IMG2IMG_ACCOUNT_ID_1 ?? '',
+  NVIDIA_EMBEDDING_MODEL: process.env.NVIDIA_EMBEDDING_MODEL ?? 'nvidia/nemotron-3.5-embed-1b',
+  CLOUDFLARE_EMBEDDING_MODEL: process.env.CLOUDFLARE_EMBEDDING_MODEL ?? '@cf/google/embeddinggemma-300m',
+  CLOUDFLARE_DECISION_MODEL: process.env.CLOUDFLARE_DECISION_MODEL ?? '@cf/cloudflare/clef-flash',
 
   MAX_PARALLEL_SUBAGENTS: Number(process.env.MAX_PARALLEL_SUBAGENTS ?? 3),
 

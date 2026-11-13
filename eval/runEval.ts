@@ -25,6 +25,7 @@ import { DeepAgentRunner } from '../src/agents/deepAgentRunner.js';
 import { runProviderSwapChecks, type CheckResult } from './providerSwapChecks.js';
 import { runToolPayloadChecks } from './toolPayloadChecks.js';
 import { runMediaToolChecks } from './mediaToolChecks.js';
+import { runUpgradedFeaturesChecks } from './upgradedFeaturesChecks.js';
 import { EVAL_CASES, type EvalCase } from './cases.js';
 import { EvalCaptureHandler } from './evalCallbackCapture.js';
 import { dateAgeSummary, looksStaleByYear } from './dateHeuristics.js';
@@ -59,9 +60,13 @@ async function runUnitChecks(): Promise<{ passed: number; failed: number }> {
   const mediaResults = await runMediaToolChecks();
   const mediaTotals = printResults(mediaResults);
 
+  printSection('UNIT CHECKS — upgraded features (temperature, chatEmbedding, chatDecision)');
+  const upgradedResults = await runUpgradedFeaturesChecks();
+  const upgradedTotals = printResults(upgradedResults);
+
   return {
-    passed: providerTotals.passed + toolTotals.passed + mediaTotals.passed,
-    failed: providerTotals.failed + toolTotals.failed + mediaTotals.failed,
+    passed: providerTotals.passed + toolTotals.passed + mediaTotals.passed + upgradedTotals.passed,
+    failed: providerTotals.failed + toolTotals.failed + mediaTotals.failed + upgradedTotals.failed,
   };
 }
 

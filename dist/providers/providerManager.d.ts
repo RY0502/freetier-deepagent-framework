@@ -10,7 +10,7 @@ export declare const PROVIDER_ORDER: ProviderName[];
  * id is sufficient — no bespoke per-provider SDK is required. This model
  * is passed directly to `createDeepAgent({ model })`.
  */
-export declare function buildProviderModel(provider: ProviderName, nvidiaKeyIndex?: number, anyApiKeyIndex?: number): ChatOpenAI;
+export declare function buildProviderModel(provider: ProviderName, nvidiaKeyIndex?: number, anyApiKeyIndex?: number, temperature?: number): ChatOpenAI;
 /**
  * Tracks which provider is currently active for a run and rotates to the
  * next one in `PROVIDER_ORDER` on quota exhaustion. Once every provider
@@ -21,7 +21,8 @@ export declare class ProviderManager {
     private currentIndex;
     private nvidiaKeyIndex;
     private anyApiKeyIndex;
-    constructor(startProvider?: ProviderName, startNvidiaKeyIndex?: number, startAnyApiKeyIndex?: number);
+    temperature?: number;
+    constructor(startProvider?: ProviderName, startNvidiaKeyIndex?: number, startAnyApiKeyIndex?: number, temperature?: number);
     get current(): ProviderName;
     /** Returns the active NVIDIA key index when NVIDIA is the current provider. */
     get currentNvidiaKeyIndex(): number;

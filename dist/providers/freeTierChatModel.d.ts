@@ -3,7 +3,27 @@ import { type BaseMessage } from '@langchain/core/messages';
 import type { ChatResult } from '@langchain/core/outputs';
 import { CallbackManagerForLLMRun } from '@langchain/core/callbacks/manager';
 import type { BaseCallbackHandler } from '@langchain/core/callbacks/base';
+import { FreeTierOrchestrator, type LlmInput } from '@freetier/orchestrator';
 import type { DynamicStructuredTool } from '@langchain/core/tools';
+export interface FreeTierChatModelParams extends BaseChatModelParams {
+    callbacks?: BaseCallbackHandler[];
+    /** Sampling temperature to control randomness / creativity (optional). */
+    temperature?: number;
+    orchestrator?: FreeTierOrchestrator<LlmInput, string>;
+}
+export declare function getTextOrchestrator(): FreeTierOrchestrator<LlmInput, string>;
+/**
+ * Direct helper to invoke free-tier text generation with temperature control.
+ */
+export declare function callTextLlm(input: {
+    prompt: string;
+    system?: string;
+    temperature?: number;
+    imageBase64?: string;
+    mimeType?: string;
+}, options?: {
+    orchestrator?: FreeTierOrchestrator<LlmInput, string>;
+}): Promise<string>;
 /**
  * LangChain `BaseChatModel` adapter around `@freetier/orchestrator`.
  *
@@ -17,12 +37,11 @@ import type { DynamicStructuredTool } from '@langchain/core/tools';
  * free-tier orchestrator").
  */
 export declare class FreeTierChatModel extends BaseChatModel {
+    temperature?: number;
     private orchestrator;
-    constructor(fields?: BaseChatModelParams & {
-        callbacks?: BaseCallbackHandler[];
-    });
+    constructor(fields?: FreeTierChatModelParams);
     _llmType(): string;
-    _generate(messages: BaseMessage[], _options: unknown, _runManager?: CallbackManagerForLLMRun): Promise<ChatResult>;
+    _generate(messages: BaseMessage[], options: unknown, _runManager?: CallbackManagerForLLMRun): Promise<ChatResult>;
     getCurrentProvider(): string;
     bindTools(tools: DynamicStructuredTool[]): this;
 }

@@ -1,6 +1,26 @@
 import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import { AIMessage } from '@langchain/core/messages';
-import { createProviders, FreeTierOrchestrator } from '@freetier/orchestrator';
+import { createTextProviders, FreeTierOrchestrator } from '@freetier/orchestrator';
+let defaultTextOrchestrator = null;
+export function getTextOrchestrator() {
+    if (!defaultTextOrchestrator) {
+        defaultTextOrchestrator = new FreeTierOrchestrator(createTextProviders());
+    }
+    return defaultTextOrchestrator;
+}
+/**
+ * Direct helper to invoke free-tier text generation with temperature control.
+ */
+export async function callTextLlm(input, options) {
+    const orchestrator = options?.orchestrator ?? getTextOrchestrator();
+    return orchestrator.invoke({
+        system: input.system ?? '',
+        prompt: input.prompt,
+        temperature: input.temperature,
+        imageBase64: input.imageBase64,
+        mimeType: input.mimeType,
+    });
+}
 /**
  * LangChain `BaseChatModel` adapter around `@freetier/orchestrator`.
  *
@@ -14,22 +34,25 @@ import { createProviders, FreeTierOrchestrator } from '@freetier/orchestrator';
  * free-tier orchestrator").
  */
 export class FreeTierChatModel extends BaseChatModel {
+    temperature;
     orchestrator;
     constructor(fields) {
         super(fields ?? {});
-        const providers = createProviders();
-        this.orchestrator = new FreeTierOrchestrator(providers);
+        this.temperature = fields?.temperature;
+        this.orchestrator = fields?.orchestrator ?? getTextOrchestrator();
     }
     _llmType() {
         return 'freetier-orchestrator';
     }
-    async _generate(messages, _options, _runManager) {
+    async _generate(messages, options, _runManager) {
         const systemMessage = messages.find((m) => m._getType() === 'system');
         const nonSystemMessages = messages.filter((m) => m._getType() !== 'system');
         const prompt = nonSystemMessages.map((m) => `${m._getType()}: ${m.content}`).join('\n');
+        const callTemperature = options?.temperature ?? this.temperature;
         const text = await this.orchestrator.invoke({
-            system: systemMessage ? String(systemMessage.content) : undefined,
+            system: systemMessage ? String(systemMessage.content) : '',
             prompt,
+            temperature: callTemperature,
         });
         return {
             generations: [
